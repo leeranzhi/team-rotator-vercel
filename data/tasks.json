@@ -1,0 +1,27 @@
+[
+  {
+    "id": 1,
+    "name": "Retro",
+    "rotationRule": "biweekly_wednesday"
+  },
+  {
+    "id": 2,
+    "name": "English word",
+    "rotationRule": "daily"
+  },
+  {
+    "id": 3,
+    "name": "Standup",
+    "rotationRule": "weekly_monday"
+  },
+  {
+    "id": 4,
+    "name": "Tech huddle",
+    "rotationRule": "weekly_friday"
+  },
+  {
+    "id": 5,
+    "name": "English corner",
+    "rotationRule": "biweekly_thursday"
+  }
+]
