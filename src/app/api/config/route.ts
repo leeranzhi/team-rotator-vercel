@@ -7,7 +7,11 @@ export async function GET() {
     const configs = await getSystemConfigs();
     return NextResponse.json(configs);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch configs' }, { status: 500 });
+    console.error('Error fetching system configs:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch system configs' },
+      { status: 500 }
+    );
   }
 }
 

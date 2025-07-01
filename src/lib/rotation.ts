@@ -1,10 +1,14 @@
 import { Member, Task, TaskAssignment } from '@/types';
 import { getMembers, getTasks, getTaskAssignments, updateTaskAssignment } from './db';
+import { isWorkingDay } from './holiday';
 
 export function getNextDayAfterTargetDay(start: Date, targetDay: number): Date {
   const daysToAdd = (targetDay - start.getDay() + 7) % 7;
+  const daysToAddWithExtra = daysToAdd === 0 ? 7 : daysToAdd;
   const targetDate = new Date(start);
-  targetDate.setDate(start.getDate() + (daysToAdd === 0 ? 7 : daysToAdd));
+  targetDate.setDate(start.getDate() + daysToAddWithExtra);
+  // 额外加一天，与原项目保持一致
+  targetDate.setDate(targetDate.getDate() + 1);
   return targetDate;
 }
 
@@ -79,6 +83,12 @@ export async function updateTaskAssignments(): Promise<void> {
       task.rotationRule,
       endDate
     );
+
+    // 对于每日任务，检查是否是工作日
+    if (task.rotationRule === 'daily' && !(await isWorkingDay(newStartDate))) {
+      console.log(`${newStartDate.toISOString().split('T')[0]} is not a working day. Skipping member rotation for AssignmentId ${assignment.id}`);
+      continue;
+    }
 
     const newMemberId = rotateMemberList(assignment.memberId, members);
 

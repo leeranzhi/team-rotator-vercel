@@ -82,9 +82,19 @@ export async function updateTaskAssignment(assignment: TaskAssignment): Promise<
   if (index === -1) {
     throw new Error('Assignment not found');
   }
-  assignments[index] = assignment;
+  
+  // Only save essential fields
+  const essentialAssignment = {
+    id: assignment.id,
+    taskId: assignment.taskId,
+    memberId: assignment.memberId,
+    startDate: assignment.startDate,
+    endDate: assignment.endDate
+  };
+  
+  assignments[index] = essentialAssignment;
   await writeJsonFile('task_assignments.json', assignments);
-  return assignment;
+  return essentialAssignment;
 }
 
 // System Configs

@@ -1,8 +1,12 @@
 import axios from 'axios';
 import { Member, Task, TaskAssignment, SystemConfig, TaskAssignmentWithDetails } from '@/types';
 
+const baseURL = process.env.NODE_ENV === 'development' 
+  ? 'http://localhost:3000/api'
+  : '/api';
+
 export const api = axios.create({
-  baseURL: '/api',
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -50,6 +54,10 @@ export const triggerRotationUpdate = async (): Promise<void> => {
   await api.post('/assignments/update-rotation');
 };
 
+export const sendToSlack = async (): Promise<void> => {
+  await api.post('/assignments/send-to-slack');
+};
+
 // System Config
 export const getSystemConfigs = async (): Promise<SystemConfig[]> => {
   const response = await api.get('/config');
@@ -63,8 +71,9 @@ export const saveSystemConfig = async (config: SystemConfig): Promise<SystemConf
 
 // Webhook URL helpers
 export const getWebhookUrl = async (): Promise<string> => {
-  const configs = await getSystemConfigs();
-  const webhookConfig = configs.find(c => c.key === 'Slack:WebhookUrl');
+  const response = await api.get('/config');
+  const configs = response.data;
+  const webhookConfig = configs.find((c: SystemConfig) => c.key === 'Slack:WebhookUrl');
   return webhookConfig?.value || '';
 };
 

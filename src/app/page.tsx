@@ -20,14 +20,18 @@ import {
   MenuItem,
   Snackbar,
   Alert,
+  Tab,
+  Tabs,
+  DialogContentText,
 } from '@mui/material';
-import { Edit as EditIcon, Refresh as RefreshIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Refresh as RefreshIcon, Send as SendIcon } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getAssignments, getMembers, updateAssignment, triggerRotationUpdate } from '@/services/api';
+import { getAssignments, getMembers, updateAssignment, triggerRotationUpdate, sendToSlack } from '@/services/api';
 import { format, parseISO } from 'date-fns';
 import { TaskAssignmentWithDetails, Member } from '@/types';
 
 export default function Dashboard() {
+  const [selectedTab, setSelectedTab] = useState(0);
   const queryClient = useQueryClient();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<TaskAssignmentWithDetails | null>(null);
@@ -41,6 +45,12 @@ export default function Dashboard() {
     endDate: '',
   });
   const [error, setError] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error'
+  });
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   const { data: assignments = [] } = useQuery<TaskAssignmentWithDetails[]>({
     queryKey: ['assignments'],
@@ -107,57 +117,170 @@ export default function Dashboard() {
     });
   };
 
-  const handleUpdateRotation = async () => {
-    await updateRotationMutation.mutateAsync();
+  const handleUpdateRotation = () => {
+    updateRotationMutation.mutate();
+  };
+
+  const getCurrentAssignments = () => {
+    const today = new Date();
+    return assignments.filter(assignment => {
+      const startDate = new Date(assignment.startDate);
+      const endDate = new Date(assignment.endDate);
+      return today >= startDate && today <= endDate;
+    });
+  };
+
+  const handleSendToSlack = async () => {
+    setConfirmDialogOpen(false);
+    try {
+      await sendToSlack();
+      setSnackbar({
+        open: true,
+        message: 'Successfully sent assignments to Slack',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error sending to Slack:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to send assignments to Slack',
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleConfirmSend = () => {
+    setConfirmDialogOpen(true);
+  };
+
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setSelectedTab(newValue);
+  };
+
+  // 获取当前的任务分配信息并格式化为 Slack 消息格式
+  const getSlackMessagePreview = () => {
+    // 按照 ID 排序，与 TeamRotator 保持一致
+    const sortedAssignments = [...assignments].sort((a, b) => a.id - b.id);
+    
+    if (sortedAssignments.length === 0) {
+      return null;
+    }
+
+    let message = '';
+    for (const assignment of sortedAssignments) {
+      message += `${assignment.taskName}: <@${assignment.slackMemberId}>\n`;
+
+      // 特殊处理 English word 任务
+      if (assignment.taskName === "English word") {
+        // 获取所有成员并按 ID 排序
+        const members = assignments
+          .map(a => ({ id: a.memberId, slackMemberId: a.slackMemberId }))
+          .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
+          .sort((a, b) => a.id - b.id);
+
+        const currentMemberIndex = members.findIndex(m => m.id === assignment.memberId);
+        if (currentMemberIndex !== -1) {
+          const nextOneMember = members[(currentMemberIndex + 1) % members.length];
+          const nextTwoMember = members[(currentMemberIndex + 2) % members.length];
+
+          message += `English word(Day + 1): <@${nextOneMember.slackMemberId}>\n`;
+          message += `English word(Day + 2): <@${nextTwoMember.slackMemberId}>\n`;
+        }
+      }
+    }
+
+    return message;
   };
 
   return (
     <Box p={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">
-          Dashboard
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<RefreshIcon />}
-          onClick={handleUpdateRotation}
-          disabled={updateRotationMutation.isPending}
-        >
-          Update Rotation
-        </Button>
-      </Box>
+      <Box display="flex" flexDirection="column" gap={2}>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="h4">
+            Dashboard
+          </Typography>
+          <Box display="flex" gap={2}>
+            <Button
+              variant="contained"
+              startIcon={<RefreshIcon />}
+              onClick={handleUpdateRotation}
+              disabled={updateRotationMutation.isPending}
+            >
+              Update Rotation
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<SendIcon />}
+              onClick={handleConfirmSend}
+            >
+              Send to Slack
+            </Button>
+          </Box>
+        </Box>
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Task</TableCell>
-              <TableCell>Assignee</TableCell>
-              <TableCell>Start Date</TableCell>
-              <TableCell>End Date</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {assignments.map((assignment) => (
-              <TableRow key={assignment.id}>
-                <TableCell>{assignment.taskName}</TableCell>
-                <TableCell>{assignment.host}</TableCell>
-                <TableCell>{format(parseISO(assignment.startDate), 'yyyy-MM-dd')}</TableCell>
-                <TableCell>{format(parseISO(assignment.endDate), 'yyyy-MM-dd')}</TableCell>
-                <TableCell>
-                  <Button
-                    startIcon={<EditIcon />}
-                    onClick={() => handleEditClick(assignment)}
-                  >
-                    Edit
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+        <Tabs
+          value={selectedTab}
+          onChange={handleTabChange}
+          sx={{
+            '& .MuiTab-root': {
+              transition: 'background-color 0.3s',
+              '&:hover': {
+                backgroundColor: 'rgba(0, 0, 0, 0.04)',
+              },
+              '&.Mui-selected': {
+                color: 'primary.main',
+              },
+            },
+            '& .MuiTabs-indicator': {
+              backgroundColor: 'primary.main',
+            },
+          }}
+        >
+          <Tab label="Current Assignments" />
+          <Tab label="History" />
+        </Tabs>
+
+        {selectedTab === 0 && (
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Task</TableCell>
+                  <TableCell>Assignee</TableCell>
+                  <TableCell>Start Date</TableCell>
+                  <TableCell>End Date</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {assignments.map((assignment) => (
+                  <TableRow key={assignment.id}>
+                    <TableCell>{assignment.taskName}</TableCell>
+                    <TableCell>{assignment.host}</TableCell>
+                    <TableCell>{format(parseISO(assignment.startDate), 'yyyy-MM-dd')}</TableCell>
+                    <TableCell>{format(parseISO(assignment.endDate), 'yyyy-MM-dd')}</TableCell>
+                    <TableCell>
+                      <Button
+                        startIcon={<EditIcon />}
+                        onClick={() => handleEditClick(assignment)}
+                      >
+                        Edit
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+
+        {selectedTab === 1 && (
+          <Typography variant="body1" sx={{ p: 2 }}>
+            Assignment history will be implemented soon.
+          </Typography>
+        )}
+      </Box>
 
       <Dialog open={editDialogOpen} onClose={handleCloseDialog}>
         <DialogTitle>Edit Assignment</DialogTitle>
@@ -208,14 +331,53 @@ export default function Dashboard() {
         </DialogActions>
       </Dialog>
 
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={() => setConfirmDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Send to Slack</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            The following message will be sent to Slack:
+          </DialogContentText>
+          <Paper 
+            variant="outlined" 
+            sx={{ 
+              p: 2, 
+              backgroundColor: '#f5f5f5',
+              fontFamily: 'monospace',
+              whiteSpace: 'pre-wrap'
+            }}
+          >
+            {getSlackMessagePreview() || 'No current assignments found'}
+          </Paper>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
+          <Button 
+            onClick={handleSendToSlack} 
+            variant="contained" 
+            color="primary"
+            disabled={!getSlackMessagePreview()}
+          >
+            Send
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Snackbar
-        open={!!error}
+        open={snackbar.open}
         autoHideDuration={6000}
-        onClose={() => setError(null)}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert onClose={() => setError(null)} severity="error">
-          {error}
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+        >
+          {snackbar.message}
         </Alert>
       </Snackbar>
     </Box>

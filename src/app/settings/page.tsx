@@ -11,25 +11,29 @@ import {
   Alert,
   Snackbar
 } from '@mui/material';
-import { getWebhookUrl, updateWebhookUrl } from '@/services/api';
+import { getWebhookUrl, updateWebhookUrl, getSystemConfigs, saveSystemConfig } from '@/services/api';
 
 export default function Settings() {
   const [webhookUrl, setWebhookUrl] = useState('');
+  const [personalWebhookUrl, setPersonalWebhookUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchWebhookUrl = async () => {
+    const fetchConfigs = async () => {
       try {
-        const url = await getWebhookUrl();
-        setWebhookUrl(url || '');
+        const configs = await getSystemConfigs();
+        const webhookConfig = configs.find(c => c.key === 'Slack:WebhookUrl');
+        const personalWebhookConfig = configs.find(c => c.key === 'Slack:PersonalWebhookUrl');
+        setWebhookUrl(webhookConfig?.value || '');
+        setPersonalWebhookUrl(personalWebhookConfig?.value || '');
       } catch (err) {
-        setError('Failed to load webhook URL');
+        setError('Failed to load settings');
       }
     };
 
-    fetchWebhookUrl();
+    fetchConfigs();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,10 +42,23 @@ export default function Settings() {
     setError(null);
 
     try {
-      await updateWebhookUrl(webhookUrl);
+      await Promise.all([
+        saveSystemConfig({
+          key: 'Slack:WebhookUrl',
+          value: webhookUrl,
+          lastModified: new Date().toISOString(),
+          modifiedBy: null
+        }),
+        saveSystemConfig({
+          key: 'Slack:PersonalWebhookUrl',
+          value: personalWebhookUrl,
+          lastModified: new Date().toISOString(),
+          modifiedBy: null
+        })
+      ]);
       setShowSuccess(true);
     } catch (err) {
-      setError('Failed to update webhook URL');
+      setError('Failed to update settings');
     } finally {
       setIsLoading(false);
     }
@@ -58,11 +75,19 @@ export default function Settings() {
             <Typography variant="h6">Slack Integration</Typography>
             <TextField
               fullWidth
-              label="Webhook URL"
+              label="Team Webhook URL"
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
               placeholder="https://hooks.slack.com/services/..."
-              helperText="Enter your Slack webhook URL for notifications"
+              helperText="Enter your team's Slack webhook URL for notifications"
+            />
+            <TextField
+              fullWidth
+              label="Personal Webhook URL"
+              value={personalWebhookUrl}
+              onChange={(e) => setPersonalWebhookUrl(e.target.value)}
+              placeholder="https://hooks.slack.com/services/..."
+              helperText="Enter your personal Slack webhook URL for error notifications (optional)"
             />
             <Box>
               <Button

@@ -3,15 +3,18 @@
     "id": 5,
     "taskId": 5,
     "memberId": 4,
-    "startDate": "2025-06-26T16:00:00.000Z",
-    "endDate": "2025-07-09T16:00:00.000Z"
+    "startDate": "2025-06-27",
+    "endDate": "2025-07-03"
   },
   {
     "id": 3,
     "taskId": 3,
     "memberId": 7,
-    "startDate": "2025-06-29T16:00:00.000Z",
-    "endDate": "2025-06-29T16:00:00.000Z"
+    "startDate": "2025-06-30",
+    "endDate": "2025-07-07",
+    "taskName": "Standup",
+    "host": "ruixing",
+    "slackMemberId": "U01DV0HGVRP"
   },
   {
     "id": 4,
@@ -23,15 +26,18 @@
   {
     "id": 2,
     "taskId": 2,
-    "memberId": 1,
-    "startDate": "2025-06-29T16:00:00.000Z",
-    "endDate": "2025-06-29T16:00:00.000Z"
+    "memberId": 2,
+    "startDate": "2025-07-01",
+    "endDate": "2025-07-01",
+    "taskName": "English word",
+    "host": "Yahui",
+    "slackMemberId": "U033H82RX45"
   },
   {
     "id": 1,
     "taskId": 1,
     "memberId": 8,
-    "startDate": "2025-06-29T16:00:00.000Z",
-    "endDate": "2025-07-01T16:00:00.000Z"
+    "startDate": "2025-06-30",
+    "endDate": "2025-07-02"
   }
 ]
