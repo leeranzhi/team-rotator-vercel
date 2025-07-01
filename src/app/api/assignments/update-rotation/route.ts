@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { updateTaskAssignments } from '@/lib/rotation';
+import { updateAndNotifyAssignments } from '@/services/assignments';
 
 export async function POST() {
   try {
-    await updateTaskAssignments();
-    return NextResponse.json({ message: 'Task assignments updated successfully' });
+    const result = await updateAndNotifyAssignments();
+    return NextResponse.json({ message: result.message });
   } catch (error) {
     console.error('Error updating task assignments:', error);
     return NextResponse.json(
