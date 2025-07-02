@@ -112,20 +112,27 @@ export function calculateCurrentPeriodDates(rule: string, today: Date): { startD
     throw new Error(`Invalid day in rotation rule: ${dayOfWeekStr}`);
   }
 
-  // 找到今天所在周期的开始日期
+  // 找到今天所在周的目标日期
   let periodStartDate = new Date(today);
   const todayDay = today.getDay();
   const daysToSubtract = (todayDay - targetDay + 7) % 7;
   periodStartDate.setDate(today.getDate() - daysToSubtract);
 
-  // 如果是双周任务，需要确定是在第一周还是第二周
+  // 对于双周任务，我们需要找到正确的双周开始日期
   if (frequency === 'biweekly') {
-    const tempStartDate = new Date(periodStartDate);
-    tempStartDate.setDate(tempStartDate.getDate() - 7);
-    // 如果减去一周后的日期仍然是当前周期的，说明现在是第二周
-    const isSecondWeek = tempStartDate.getTime() >= periodStartDate.getTime();
-    if (!isSecondWeek) {
-      // 如果是第一周，开始日期要往前推一周
+    // 获取一个已知的基准日期（比如2024-01-04，这是一个双周的开始日期）
+    const referenceDate = new Date('2024-01-04');  // 这是一个周四，作为双周的开始
+    
+    // 计算当前日期和基准日期之间的天数差
+    const diffTime = periodStartDate.getTime() - referenceDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    // 计算当前日期是在哪个双周期内
+    const weekNum = Math.floor(diffDays / 7);
+    const isEvenWeek = weekNum % 2 === 0;
+    
+    // 如果是奇数周，需要往前推一周找到双周期的开始
+    if (!isEvenWeek) {
       periodStartDate.setDate(periodStartDate.getDate() - 7);
     }
   }
