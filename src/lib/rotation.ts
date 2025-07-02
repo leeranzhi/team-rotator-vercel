@@ -96,7 +96,10 @@ function rotateMemberList(currentMemberId: number, members: Member[]): number {
 
 export function calculateCurrentPeriodDates(rule: string, today: Date): { startDate: Date; endDate: Date } {
   if (rule === 'daily') {
-    return { startDate: today, endDate: today };
+    // 对于每日任务，直接使用今天的日期
+    const todayStr = today.toISOString().split('T')[0];
+    const todayDate = new Date(todayStr);
+    return { startDate: todayDate, endDate: todayDate };
   }
 
   const parts = rule?.split('_');
@@ -179,14 +182,21 @@ export async function updateTaskAssignments(): Promise<void> {
     const currentEndDate = new Date(assignment.endDate);
     currentEndDate.setHours(0, 0, 0, 0);
 
-    // 如果日期不正确或者当前分配已过期，更新分配
-    if (currentStartDate.getTime() !== correctStartDate.getTime() ||
-        currentEndDate.getTime() !== correctEndDate.getTime() ||
-        today > currentEndDate) {
-      
-      // 如果当前分配已过期，轮转到下一个成员
-      const newMemberId = today > currentEndDate ? 
-        rotateMemberList(assignment.memberId, members) : 
+    // 对于每日任务，如果日期不是今天，就需要更新
+    const needsUpdate = task.rotationRule === 'daily' ?
+      currentStartDate.getTime() !== correctStartDate.getTime() :
+      currentStartDate.getTime() !== correctStartDate.getTime() ||
+      currentEndDate.getTime() !== correctEndDate.getTime() ||
+      today > currentEndDate;
+
+    if (needsUpdate) {
+      // 如果是每日任务且日期不是今天，或者其他任务已过期，需要轮转到下一个成员
+      const needsRotation = task.rotationRule === 'daily' ?
+        currentStartDate.getTime() !== correctStartDate.getTime() :
+        today > currentEndDate;
+
+      const newMemberId = needsRotation ?
+        rotateMemberList(assignment.memberId, members) :
         assignment.memberId;
 
       await updateTaskAssignment({
