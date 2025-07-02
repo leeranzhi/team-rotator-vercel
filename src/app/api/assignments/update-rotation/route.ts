@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { updateAndNotifyAssignments } from '@/services/assignments';
+import { updateAssignmentsOnly } from '@/services/assignments';
 
 export async function POST() {
   try {
-    const result = await updateAndNotifyAssignments();
+    const result = await updateAssignmentsOnly();
     return NextResponse.json({ message: result.message });
   } catch (error) {
     console.error('Error updating task assignments:', error);

@@ -1,12 +1,22 @@
 import { NextResponse } from 'next/server';
-import { updateAndNotifyAssignments } from '@/services/assignments';
+import { updateAssignmentsOnly, sendNotificationOnly } from '@/services/assignments';
 
 export async function GET() {
   try {
-    const result = await updateAndNotifyAssignments({ 
+    // 先更新任务分配
+    const updateResult = await updateAssignmentsOnly({ 
       checkWorkingDay: true
     });
-    return NextResponse.json({ message: result.message });
+
+    // 如果不是工作日，直接返回
+    if (updateResult.message === 'Not a working day, skipping update') {
+      return NextResponse.json({ message: updateResult.message });
+    }
+
+    // 再发送通知
+    await sendNotificationOnly();
+    
+    return NextResponse.json({ message: 'Cron job completed successfully' });
   } catch (error) {
     console.error('Error in cron job:', error);
     return NextResponse.json(

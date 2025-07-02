@@ -92,7 +92,8 @@ export async function sendErrorToSlack(error: Error | string) {
   }
 }
 
-export async function updateAndNotifyAssignments(options: { 
+// 只更新任务分配，不发送通知
+export async function updateAssignmentsOnly(options: { 
   checkWorkingDay?: boolean
 } = {}) {
   const { checkWorkingDay = false } = options;
@@ -105,25 +106,34 @@ export async function updateAndNotifyAssignments(options: {
 
     // 更新任务分配
     await updateTaskAssignments();
+    return { success: true, message: 'Task assignments updated successfully' };
+  } catch (error) {
+    console.error('Error in updateAssignmentsOnly:', error);
+    throw error;
+  }
+}
 
-    // 获取 Webhook URL
+// 只发送 Slack 通知
+export async function sendNotificationOnly() {
+  try {
     const configs = await getSystemConfigs();
     const webhookConfig = configs.find(c => c.key === 'Slack:WebhookUrl');
     const webhookUrl = webhookConfig?.value;
 
-    if (webhookUrl) {
-      // 获取最新的任务分配并发送到 Slack
-      const assignments = await getTaskAssignmentsWithDetails();
-      const messageText = await getSlackMessage(assignments);
-      
-      if (messageText) {
-        await sendToSlack(webhookUrl, messageText);
-      }
+    if (!webhookUrl) {
+      throw new Error('Slack webhook URL is not configured');
     }
 
-    return { success: true, message: 'Task assignments updated and notifications sent successfully' };
+    const assignments = await getTaskAssignmentsWithDetails();
+    const messageText = await getSlackMessage(assignments);
+    
+    if (messageText) {
+      await sendToSlack(webhookUrl, messageText);
+    }
+
+    return { success: true, message: 'Notifications sent successfully' };
   } catch (error) {
-    console.error('Error in updateAndNotifyAssignments:', error);
+    console.error('Error in sendNotificationOnly:', error);
     await sendErrorToSlack(error instanceof Error ? error : new Error(String(error)));
     throw error;
   }
