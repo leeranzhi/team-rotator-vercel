@@ -12,11 +12,9 @@ export function getNextDayAfterTargetDay(start: Date, targetDay: number): Date {
   return targetDate;
 }
 
-export function calculateNextRotationDates(rule: string, fromDate: Date): { startDate: Date; endDate: Date } {
+export function calculateEndDate(rule: string, startDate: Date): Date {
   if (rule === 'daily') {
-    const next = new Date(fromDate);
-    next.setDate(next.getDate() + 1);
-    return { startDate: next, endDate: next };
+    return new Date(startDate);
   }
 
   const parts = rule?.split('_');
@@ -32,19 +30,16 @@ export function calculateNextRotationDates(rule: string, fromDate: Date): { star
     throw new Error(`Invalid day in rotation rule: ${dayOfWeekStr}`);
   }
 
-  const firstTargetDayAfter = getNextDayAfterTargetDay(fromDate, targetDay);
-
   switch (frequency) {
     case 'weekly': {
-      const endDate = new Date(firstTargetDayAfter);
+      const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + 6);
-      return { startDate: firstTargetDayAfter, endDate };
+      return endDate;
     }
     case 'biweekly': {
-      const secondTargetDay = getNextDayAfterTargetDay(firstTargetDayAfter, targetDay);
-      const endDate = new Date(secondTargetDay);
+      const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + 13);
-      return { startDate: secondTargetDay, endDate };
+      return endDate;
     }
     default:
       throw new Error(`Unsupported frequency: ${frequency}`);
@@ -75,28 +70,40 @@ export async function updateTaskAssignments(): Promise<void> {
     if (!task) continue;
 
     const startDate = new Date(assignment.startDate);
-    const endDate = new Date(assignment.endDate);
+    startDate.setHours(0, 0, 0, 0);
 
-    if (today <= endDate) continue;
+    // 如果开始日期在今天之后，不需要更新
+    if (startDate > today) continue;
 
-    const { startDate: newStartDate, endDate: newEndDate } = calculateNextRotationDates(
-      task.rotationRule,
-      endDate
-    );
+    // 计算正确的结束日期
+    const endDate = calculateEndDate(task.rotationRule, startDate);
 
-    // 对于每日任务，检查是否是工作日
-    if (task.rotationRule === 'daily' && !(await isWorkingDay(newStartDate))) {
-      console.log(`${newStartDate.toISOString().split('T')[0]} is not a working day. Skipping member rotation for AssignmentId ${assignment.id}`);
-      continue;
+    // 如果今天超过了结束日期，需要轮转到下一个人
+    if (today > endDate) {
+      const newMemberId = rotateMemberList(assignment.memberId, members);
+      const newStartDate = new Date(today);
+      const newEndDate = calculateEndDate(task.rotationRule, newStartDate);
+
+      // 对于每日任务，检查是否是工作日
+      if (task.rotationRule === 'daily' && !(await isWorkingDay(newStartDate))) {
+        console.log(`${newStartDate.toISOString().split('T')[0]} is not a working day. Skipping member rotation for AssignmentId ${assignment.id}`);
+        continue;
+      }
+
+      await updateTaskAssignment({
+        ...assignment,
+        memberId: newMemberId,
+        startDate: newStartDate.toISOString().split('T')[0],
+        endDate: newEndDate.toISOString().split('T')[0],
+      });
+    } else {
+      // 只更新结束日期
+      if (assignment.endDate !== endDate.toISOString().split('T')[0]) {
+        await updateTaskAssignment({
+          ...assignment,
+          endDate: endDate.toISOString().split('T')[0],
+        });
+      }
     }
-
-    const newMemberId = rotateMemberList(assignment.memberId, members);
-
-    await updateTaskAssignment({
-      ...assignment,
-      memberId: newMemberId,
-      startDate: newStartDate.toISOString().split('T')[0],
-      endDate: newEndDate.toISOString().split('T')[0],
-    });
   }
 } 
