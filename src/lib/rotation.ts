@@ -10,11 +10,23 @@ export function getNextDayAfterTargetDay(start: Date, targetDay: number): Date {
   return targetDate;
 }
 
-export function calculateNextRotationDates(rule: string, fromDate: Date): { startDate: Date; endDate: Date } {
+export function calculateNextRotationDates(rule: string, fromDate: Date, currentStartDate: string): { startDate: Date; endDate: Date } {
   const today = new Date(fromDate);
   today.setHours(0, 0, 0, 0);
 
   if (rule === 'daily') {
+    // 如果当前开始日期是未来日期，保持不变
+    const currentStart = new Date(currentStartDate);
+    currentStart.setHours(0, 0, 0, 0);
+    
+    if (currentStart >= today) {
+      return { 
+        startDate: currentStart,
+        endDate: currentStart 
+      };
+    }
+    
+    // 否则，设置为今天
     const startDate = new Date(today);
     const endDate = new Date(startDate);
     return { startDate, endDate };
@@ -86,7 +98,8 @@ export async function updateTaskAssignments(): Promise<void> {
     // 计算下一个轮转周期的日期
     const { startDate: newStartDate, endDate: newEndDate } = calculateNextRotationDates(
       task.rotationRule,
-      today
+      today,
+      assignment.startDate
     );
 
     // 对于每日任务，检查是否是工作日
