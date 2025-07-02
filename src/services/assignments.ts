@@ -46,7 +46,20 @@ export async function getSlackMessage(assignments: any[]) {
   return messageBuilder.join('');
 }
 
-export async function sendToSlack(webhookUrl: string, message: string) {
+function getReadablePreview(message: string, assignments: any[]) {
+  // 创建一个映射：slackMemberId -> host
+  const memberMap = new Map(
+    assignments.map(a => [a.slackMemberId, a.host])
+  );
+
+  // 替换所有的 <@UXXXXXX> 为对应的 host 名字
+  return message.replace(/<@(U[A-Z0-9]+)>/g, (_, slackId) => {
+    const host = memberMap.get(slackId);
+    return host || slackId;
+  });
+}
+
+export async function sendToSlack(webhookUrl: string, message: string, assignments?: any[]) {
   if (!webhookUrl) {
     throw new Error('Slack webhook URL is not configured');
   }
@@ -55,6 +68,10 @@ export async function sendToSlack(webhookUrl: string, message: string) {
   
   console.log('Sending Slack message with:');
   console.log('Webhook URL:', webhookUrl);
+  if (assignments) {
+    // 如果提供了 assignments，显示可读的预览
+    console.log('Message Preview:', getReadablePreview(message, assignments));
+  }
   console.log('Message Body:', body);
 
   const response = await fetch(webhookUrl, {
@@ -128,7 +145,7 @@ export async function sendNotificationOnly() {
     const messageText = await getSlackMessage(assignments);
     
     if (messageText) {
-      await sendToSlack(webhookUrl, messageText);
+      await sendToSlack(webhookUrl, messageText, assignments);
     }
 
     return { success: true, message: 'Notifications sent successfully' };
