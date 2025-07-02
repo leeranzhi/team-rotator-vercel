@@ -95,10 +95,14 @@ function rotateMemberList(currentMemberId: number, members: Member[]): number {
 }
 
 export function calculateCurrentPeriodDates(rule: string, today: Date): { startDate: Date; endDate: Date } {
+  // 确保使用当前年份
+  const currentYear = new Date().getFullYear();
+  
   if (rule === 'daily') {
-    // 对于每日任务，直接使用今天的日期
+    // 对于每日任务，直接使用今天的日期，但确保年份正确
     const todayStr = today.toISOString().split('T')[0];
     const todayDate = new Date(todayStr);
+    todayDate.setFullYear(currentYear);
     return { startDate: todayDate, endDate: todayDate };
   }
 
@@ -158,12 +162,18 @@ export async function updateTaskAssignments(): Promise<void> {
     getTaskAssignments(),
   ]);
 
+  // 使用当前日期，确保年份正确
   const today = new Date();
+  const currentYear = today.getFullYear();
   today.setHours(0, 0, 0, 0);
+  
+  console.log('Processing date:', today.toISOString());
 
   for (const assignment of assignments) {
     const task = tasks.find(t => t.id === assignment.taskId);
     if (!task) continue;
+
+    console.log(`\nProcessing task: ${task.name} (${task.rotationRule})`);
 
     // 计算当前周期的正确日期范围
     const { startDate: correctStartDate, endDate: correctEndDate } = calculateCurrentPeriodDates(
@@ -171,33 +181,52 @@ export async function updateTaskAssignments(): Promise<void> {
       today
     );
 
-    // 对于每日任务，检查是否是工作日
-    if (task.rotationRule === 'daily' && !(await isWorkingDay(correctStartDate))) {
-      console.log(`${correctStartDate.toISOString().split('T')[0]} is not a working day. Skipping update for AssignmentId ${assignment.id}`);
-      continue;
-    }
-
+    // 确保当前分配的日期使用正确的年份
     const currentStartDate = new Date(assignment.startDate);
+    currentStartDate.setFullYear(currentYear);
     currentStartDate.setHours(0, 0, 0, 0);
+    
     const currentEndDate = new Date(assignment.endDate);
+    currentEndDate.setFullYear(currentYear);
     currentEndDate.setHours(0, 0, 0, 0);
+
+    console.log('Dates comparison:', {
+      today: today.toISOString(),
+      currentStart: currentStartDate.toISOString(),
+      currentEnd: currentEndDate.toISOString(),
+      correctStart: correctStartDate.toISOString(),
+      correctEnd: correctEndDate.toISOString()
+    });
 
     // 对于每日任务，如果日期不是今天，就需要更新
     const needsUpdate = task.rotationRule === 'daily' ?
-      currentStartDate.getTime() !== correctStartDate.getTime() :
+      currentStartDate.getTime() !== today.getTime() :  // 对于每日任务，直接和今天比较
       currentStartDate.getTime() !== correctStartDate.getTime() ||
       currentEndDate.getTime() !== correctEndDate.getTime() ||
-      today > currentEndDate;
+      today.getTime() > currentEndDate.getTime();
+
+    console.log('Needs update:', needsUpdate);
 
     if (needsUpdate) {
       // 如果是每日任务且日期不是今天，或者其他任务已过期，需要轮转到下一个成员
       const needsRotation = task.rotationRule === 'daily' ?
-        currentStartDate.getTime() !== correctStartDate.getTime() :
-        today > currentEndDate;
+        currentStartDate.getTime() !== today.getTime() :  // 对于每日任务，直接和今天比较
+        today.getTime() > currentEndDate.getTime();
+
+      console.log('Needs rotation:', needsRotation);
 
       const newMemberId = needsRotation ?
         rotateMemberList(assignment.memberId, members) :
         assignment.memberId;
+
+      console.log('Update details:', {
+        oldMemberId: assignment.memberId,
+        newMemberId,
+        oldStartDate: assignment.startDate,
+        newStartDate: correctStartDate.toISOString().split('T')[0],
+        oldEndDate: assignment.endDate,
+        newEndDate: correctEndDate.toISOString().split('T')[0]
+      });
 
       await updateTaskAssignment({
         ...assignment,
