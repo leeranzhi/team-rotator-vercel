@@ -94,6 +94,53 @@ function rotateMemberList(currentMemberId: number, members: Member[]): number {
   return sortedMembers[(currentIndex + 1) % sortedMembers.length].id;
 }
 
+export function calculateCurrentPeriodDates(rule: string, today: Date): { startDate: Date; endDate: Date } {
+  if (rule === 'daily') {
+    return { startDate: today, endDate: today };
+  }
+
+  const parts = rule?.split('_');
+  if (!parts || parts.length !== 2) {
+    throw new Error(`Invalid rotation rule: ${rule}`);
+  }
+
+  const [frequency, dayOfWeekStr] = parts;
+  const targetDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    .indexOf(dayOfWeekStr.toLowerCase());
+
+  if (targetDay === -1) {
+    throw new Error(`Invalid day in rotation rule: ${dayOfWeekStr}`);
+  }
+
+  // 找到今天所在周期的开始日期
+  let periodStartDate = new Date(today);
+  const todayDay = today.getDay();
+  const daysToSubtract = (todayDay - targetDay + 7) % 7;
+  periodStartDate.setDate(today.getDate() - daysToSubtract);
+
+  // 如果是双周任务，需要确定是在第一周还是第二周
+  if (frequency === 'biweekly') {
+    const tempStartDate = new Date(periodStartDate);
+    tempStartDate.setDate(tempStartDate.getDate() - 7);
+    // 如果减去一周后的日期仍然是当前周期的，说明现在是第二周
+    const isSecondWeek = tempStartDate.getTime() >= periodStartDate.getTime();
+    if (!isSecondWeek) {
+      // 如果是第一周，开始日期要往前推一周
+      periodStartDate.setDate(periodStartDate.getDate() - 7);
+    }
+  }
+
+  // 计算结束日期
+  const endDate = new Date(periodStartDate);
+  if (frequency === 'weekly') {
+    endDate.setDate(endDate.getDate() + 6);
+  } else if (frequency === 'biweekly') {
+    endDate.setDate(endDate.getDate() + 13);
+  }
+
+  return { startDate: periodStartDate, endDate };
+}
+
 export async function updateTaskAssignments(): Promise<void> {
   const [tasks, members, assignments] = await Promise.all([
     getTasks(),
@@ -108,44 +155,39 @@ export async function updateTaskAssignments(): Promise<void> {
     const task = tasks.find(t => t.id === assignment.taskId);
     if (!task) continue;
 
-    const startDate = new Date(assignment.startDate);
-    startDate.setHours(0, 0, 0, 0);
+    // 计算当前周期的正确日期范围
+    const { startDate: correctStartDate, endDate: correctEndDate } = calculateCurrentPeriodDates(
+      task.rotationRule,
+      today
+    );
 
-    // 计算基于开始日期的正确结束日期
-    const correctEndDate = calculateEndDate(task.rotationRule, startDate);
+    // 对于每日任务，检查是否是工作日
+    if (task.rotationRule === 'daily' && !(await isWorkingDay(correctStartDate))) {
+      console.log(`${correctStartDate.toISOString().split('T')[0]} is not a working day. Skipping update for AssignmentId ${assignment.id}`);
+      continue;
+    }
 
-    // 如果当前分配已过期，需要轮转到下一个人
-    if (today > correctEndDate) {
-      const { startDate: newStartDate, endDate: newEndDate } = calculateNextRotationDates(
-        task.rotationRule,
-        correctEndDate
-      );
+    const currentStartDate = new Date(assignment.startDate);
+    currentStartDate.setHours(0, 0, 0, 0);
+    const currentEndDate = new Date(assignment.endDate);
+    currentEndDate.setHours(0, 0, 0, 0);
 
-      // 对于每日任务，检查是否是工作日
-      if (task.rotationRule === 'daily' && !(await isWorkingDay(newStartDate))) {
-        console.log(`${newStartDate.toISOString().split('T')[0]} is not a working day. Skipping member rotation for AssignmentId ${assignment.id}`);
-        continue;
-      }
-
-      const newMemberId = rotateMemberList(assignment.memberId, members);
+    // 如果日期不正确或者当前分配已过期，更新分配
+    if (currentStartDate.getTime() !== correctStartDate.getTime() ||
+        currentEndDate.getTime() !== correctEndDate.getTime() ||
+        today > currentEndDate) {
+      
+      // 如果当前分配已过期，轮转到下一个成员
+      const newMemberId = today > currentEndDate ? 
+        rotateMemberList(assignment.memberId, members) : 
+        assignment.memberId;
 
       await updateTaskAssignment({
         ...assignment,
         memberId: newMemberId,
-        startDate: newStartDate.toISOString().split('T')[0],
-        endDate: newEndDate.toISOString().split('T')[0],
+        startDate: correctStartDate.toISOString().split('T')[0],
+        endDate: correctEndDate.toISOString().split('T')[0],
       });
-    } else {
-      // 如果当前分配未过期，但结束日期不正确，更新结束日期
-      const currentEndDate = new Date(assignment.endDate);
-      currentEndDate.setHours(0, 0, 0, 0);
-
-      if (currentEndDate.getTime() !== correctEndDate.getTime()) {
-        await updateTaskAssignment({
-          ...assignment,
-          endDate: correctEndDate.toISOString().split('T')[0],
-        });
-      }
     }
   }
 } 
