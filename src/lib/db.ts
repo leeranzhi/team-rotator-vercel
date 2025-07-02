@@ -4,6 +4,12 @@ import { Member, Task, TaskAssignment, SystemConfig, TaskAssignmentWithDetails }
 
 const dataDirectory = path.join(process.cwd(), 'data');
 
+// In-memory cache
+let membersCache: Member[] | null = null;
+let tasksCache: Task[] | null = null;
+let assignmentsCache: TaskAssignment[] | null = null;
+let configsCache: SystemConfig[] | null = null;
+
 // 确保数据目录存在
 async function ensureDataDirectory() {
   try {
@@ -29,6 +35,11 @@ async function readJsonFile<T>(filename: string): Promise<T[]> {
 
 // 通用的写入JSON文件函数
 async function writeJsonFile<T>(filename: string, data: T[]): Promise<void> {
+  // In production, skip file writing
+  if (process.env.NODE_ENV === 'production') {
+    return;
+  }
+
   await ensureDataDirectory();
   const filePath = path.join(dataDirectory, filename);
   await fs.writeFile(filePath, JSON.stringify(data, null, 2));
@@ -36,7 +47,10 @@ async function writeJsonFile<T>(filename: string, data: T[]): Promise<void> {
 
 // Members
 export async function getMembers(): Promise<Member[]> {
-  return readJsonFile<Member>('members.json');
+  if (!membersCache) {
+    membersCache = await readJsonFile<Member>('members.json');
+  }
+  return membersCache;
 }
 
 export async function saveMember(member: Member): Promise<Member> {
@@ -44,13 +58,17 @@ export async function saveMember(member: Member): Promise<Member> {
   const newId = members.length > 0 ? Math.max(...members.map(m => m.id)) + 1 : 1;
   const newMember = { ...member, id: newId };
   members.push(newMember);
+  membersCache = members;
   await writeJsonFile('members.json', members);
   return newMember;
 }
 
 // Tasks
 export async function getTasks(): Promise<Task[]> {
-  return readJsonFile<Task>('tasks.json');
+  if (!tasksCache) {
+    tasksCache = await readJsonFile<Task>('tasks.json');
+  }
+  return tasksCache;
 }
 
 export async function saveTask(task: Task): Promise<Task> {
@@ -58,13 +76,17 @@ export async function saveTask(task: Task): Promise<Task> {
   const newId = tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
   const newTask = { ...task, id: newId };
   tasks.push(newTask);
+  tasksCache = tasks;
   await writeJsonFile('tasks.json', tasks);
   return newTask;
 }
 
 // Task Assignments
 export async function getTaskAssignments(): Promise<TaskAssignment[]> {
-  return readJsonFile<TaskAssignment>('task_assignments.json');
+  if (!assignmentsCache) {
+    assignmentsCache = await readJsonFile<TaskAssignment>('task_assignments.json');
+  }
+  return assignmentsCache;
 }
 
 export async function saveTaskAssignment(assignment: TaskAssignment): Promise<TaskAssignment> {
@@ -72,6 +94,7 @@ export async function saveTaskAssignment(assignment: TaskAssignment): Promise<Ta
   const newId = assignments.length > 0 ? Math.max(...assignments.map(a => a.id)) + 1 : 1;
   const newAssignment = { ...assignment, id: newId };
   assignments.push(newAssignment);
+  assignmentsCache = assignments;
   await writeJsonFile('task_assignments.json', assignments);
   return newAssignment;
 }
@@ -93,13 +116,17 @@ export async function updateTaskAssignment(assignment: TaskAssignment): Promise<
   };
   
   assignments[index] = essentialAssignment;
+  assignmentsCache = assignments;
   await writeJsonFile('task_assignments.json', assignments);
   return essentialAssignment;
 }
 
 // System Configs
 export async function getSystemConfigs(): Promise<SystemConfig[]> {
-  return readJsonFile<SystemConfig>('system_configs.json');
+  if (!configsCache) {
+    configsCache = await readJsonFile<SystemConfig>('system_configs.json');
+  }
+  return configsCache;
 }
 
 export async function saveSystemConfig(config: SystemConfig): Promise<SystemConfig> {
@@ -110,6 +137,7 @@ export async function saveSystemConfig(config: SystemConfig): Promise<SystemConf
   } else {
     configs.push(config);
   }
+  configsCache = configs;
   await writeJsonFile('system_configs.json', configs);
   return config;
 }
@@ -132,4 +160,12 @@ export async function getTaskAssignmentsWithDetails(): Promise<TaskAssignmentWit
       slackMemberId: member?.slackMemberId || '',
     };
   });
+}
+
+// Reset cache (useful for testing)
+export function resetCache() {
+  membersCache = null;
+  tasksCache = null;
+  assignmentsCache = null;
+  configsCache = null;
 } 
