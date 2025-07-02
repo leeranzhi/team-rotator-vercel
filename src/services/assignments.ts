@@ -1,6 +1,7 @@
-import { getTaskAssignmentsWithDetails, getSystemConfigs } from '@/lib/db';
+import { getTaskAssignmentsWithDetails, getSystemConfigs, getMembers } from '@/lib/db';
 import { updateTaskAssignments } from '@/lib/rotation';
 import { isWorkingDay } from '@/lib/holiday';
+import { Member } from '@/types';
 
 export interface SlackMessage {
   text: string;
@@ -18,6 +19,10 @@ export async function getSlackMessage(assignments: any[]) {
     return null;
   }
 
+  // 获取所有成员并按 ID 排序
+  const allMembers = await getMembers();
+  const sortedMembers = allMembers.sort((a, b) => a.id - b.id);
+
   // 按照 ID 排序
   const sortedAssignments = assignments.sort((a, b) => a.id - b.id);
   const messageBuilder = [];
@@ -27,15 +32,10 @@ export async function getSlackMessage(assignments: any[]) {
 
     // 特殊处理 English word 任务
     if (assignment.taskName === "English word") {
-      const members = assignments
-        .map(a => ({ id: a.memberId, slackMemberId: a.slackMemberId }))
-        .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
-        .sort((a, b) => a.id - b.id);
-
-      const currentMemberIndex = members.findIndex(m => m.id === assignment.memberId);
+      const currentMemberIndex = sortedMembers.findIndex(m => m.id === assignment.memberId);
       if (currentMemberIndex !== -1) {
-        const nextOneMember = members[(currentMemberIndex + 1) % members.length];
-        const nextTwoMember = members[(currentMemberIndex + 2) % members.length];
+        const nextOneMember = sortedMembers[(currentMemberIndex + 1) % sortedMembers.length];
+        const nextTwoMember = sortedMembers[(currentMemberIndex + 2) % sortedMembers.length];
 
         messageBuilder.push(`English word(Day + 1): <@${nextOneMember.slackMemberId}>\n`);
         messageBuilder.push(`English word(Day + 2): <@${nextTwoMember.slackMemberId}>\n`);
@@ -46,20 +46,7 @@ export async function getSlackMessage(assignments: any[]) {
   return messageBuilder.join('');
 }
 
-function getReadablePreview(message: string, assignments: any[]) {
-  // 创建一个映射：slackMemberId -> host
-  const memberMap = new Map(
-    assignments.map(a => [a.slackMemberId, a.host])
-  );
-
-  // 替换所有的 <@UXXXXXX> 为对应的 host 名字
-  return message.replace(/<@(U[A-Z0-9]+)>/g, (_, slackId) => {
-    const host = memberMap.get(slackId);
-    return host || slackId;
-  });
-}
-
-export async function sendToSlack(webhookUrl: string, message: string, assignments?: any[]) {
+export async function sendToSlack(webhookUrl: string, message: string) {
   if (!webhookUrl) {
     throw new Error('Slack webhook URL is not configured');
   }
@@ -68,10 +55,6 @@ export async function sendToSlack(webhookUrl: string, message: string, assignmen
   
   console.log('Sending Slack message with:');
   console.log('Webhook URL:', webhookUrl);
-  if (assignments) {
-    // 如果提供了 assignments，显示可读的预览
-    console.log('Message Preview:', getReadablePreview(message, assignments));
-  }
   console.log('Message Body:', body);
 
   const response = await fetch(webhookUrl, {
@@ -145,7 +128,7 @@ export async function sendNotificationOnly() {
     const messageText = await getSlackMessage(assignments);
     
     if (messageText) {
-      await sendToSlack(webhookUrl, messageText, assignments);
+      await sendToSlack(webhookUrl, messageText);
     }
 
     return { success: true, message: 'Notifications sent successfully' };

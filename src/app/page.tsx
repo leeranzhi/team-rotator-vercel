@@ -166,25 +166,22 @@ export default function Dashboard() {
       return null;
     }
 
+    // 获取所有成员并按 ID 排序
+    const allMembers = members.sort((a, b) => a.id - b.id);
+
     let message = '';
     for (const assignment of sortedAssignments) {
-      message += `${assignment.taskName}: <@${assignment.slackMemberId}>\n`;
+      message += `${assignment.taskName}: ${assignment.host}\n`;
 
       // 特殊处理 English word 任务
       if (assignment.taskName === "English word") {
-        // 获取所有成员并按 ID 排序
-        const members = assignments
-          .map(a => ({ id: a.memberId, slackMemberId: a.slackMemberId }))
-          .filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
-          .sort((a, b) => a.id - b.id);
-
-        const currentMemberIndex = members.findIndex(m => m.id === assignment.memberId);
+        const currentMemberIndex = allMembers.findIndex(m => m.id === assignment.memberId);
         if (currentMemberIndex !== -1) {
-          const nextOneMember = members[(currentMemberIndex + 1) % members.length];
-          const nextTwoMember = members[(currentMemberIndex + 2) % members.length];
+          const nextOneMember = allMembers[(currentMemberIndex + 1) % allMembers.length];
+          const nextTwoMember = allMembers[(currentMemberIndex + 2) % allMembers.length];
 
-          message += `English word(Day + 1): <@${nextOneMember.slackMemberId}>\n`;
-          message += `English word(Day + 2): <@${nextTwoMember.slackMemberId}>\n`;
+          message += `English word(Day + 1): ${nextOneMember.host}\n`;
+          message += `English word(Day + 2): ${nextTwoMember.host}\n`;
         }
       }
     }
