@@ -19,6 +19,7 @@ export default function Settings() {
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastSaved, setLastSaved] = useState<number>(0); // 添加一个状态来跟踪最后保存的时间
 
   useEffect(() => {
     const fetchConfigs = async () => {
@@ -34,7 +35,7 @@ export default function Settings() {
     };
 
     fetchConfigs();
-  }, []);
+  }, [lastSaved]); // 添加 lastSaved 作为依赖项
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +58,7 @@ export default function Settings() {
         })
       ]);
       setShowSuccess(true);
+      setLastSaved(Date.now()); // 更新最后保存的时间
     } catch (err) {
       setError('Failed to update settings');
     } finally {
