@@ -116,19 +116,31 @@ export async function updateAssignmentsOnly(options: {
 // 只发送 Slack 通知
 export async function sendNotificationOnly() {
   try {
+    console.log('Getting system configs for Slack notification...');
     const configs = await getSystemConfigs();
     const webhookConfig = configs.find(c => c.key === 'Slack:WebhookUrl');
     const webhookUrl = webhookConfig?.value;
+
+    console.log('Webhook config:', {
+      found: !!webhookConfig,
+      url: webhookUrl ? `${webhookUrl.substring(0, 20)}...` : 'not set'
+    });
 
     if (!webhookUrl) {
       throw new Error('Slack webhook URL is not configured');
     }
 
+    console.log('Getting task assignments...');
     const assignments = await getTaskAssignmentsWithDetails();
+    console.log(`Found ${assignments.length} assignments`);
+
     const messageText = await getSlackMessage(assignments);
+    console.log('Generated Slack message:', messageText ? 'yes' : 'no');
     
     if (messageText) {
+      console.log('Sending notification to Slack...');
       await sendToSlack(webhookUrl, messageText);
+      console.log('Notification sent successfully');
     }
 
     return { success: true, message: 'Notifications sent successfully' };
