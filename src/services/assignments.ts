@@ -2,6 +2,7 @@ import { getTaskAssignmentsWithDetails, getSystemConfigs, getMembers } from '@/l
 import { updateTaskAssignments } from '@/lib/rotation';
 import { isWorkingDay } from '@/lib/holiday';
 import { Member } from '@/types';
+import { logger } from '@/lib/logger';
 
 export interface SlackMessage {
   text: string;
@@ -46,49 +47,54 @@ export async function getSlackMessage(assignments: any[]) {
   return messageBuilder.join('');
 }
 
-export async function sendToSlack(webhookUrl: string, message: string) {
-  if (!webhookUrl) {
-    throw new Error('Slack webhook URL is not configured');
-  }
+export async function sendToSlack(message: string, webhookUrl?: string) {
+  logger.info('Getting system configs for Slack notification...');
+  const configs = await getSystemConfigs();
+  const webhookConfig = configs.find(c => c.key === 'Slack:WebhookUrl');
+  const url = webhookUrl || webhookConfig?.value;
 
-  const body = JSON.stringify({ text: message });
+  logger.info(`Webhook config: ${JSON.stringify({ found: !!url, url: url ? url.substring(0, 20) + '...' : 'not found' })}`);
   
-  console.log('Sending Slack message with:');
-  console.log('Webhook URL:', webhookUrl);
-  console.log('Message Body:', body);
-
-  const response = await fetch(webhookUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body,
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to send Slack message. Status: ${response.status} Error: ${error}`);
+  if (!url) {
+    const error = 'Slack webhook URL not configured';
+    logger.error(error);
+    throw new Error(error);
   }
 
-  console.log('Successfully sent Slack message');
-}
-
-export async function sendErrorToSlack(error: Error | string) {
   try {
-    console.log('Sending failure message to Slack...');
+    logger.info('Sending notification to Slack...');
+    logger.info(`Sending Slack message with:\nWebhook URL: ${url}\nMessage Body: ${message}`);
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: message,
+    });
 
-    const configs = await getSystemConfigs();
-    const webhookConfig = configs.find(c => c.key === 'Slack:PersonalWebhookUrl');
-    const webhookUrl = webhookConfig?.value;
-
-    if (!webhookUrl) {
-      console.warn('Personal Slack webhook URL is not configured');
-      return;
+    if (!response.ok) {
+      const error = `Failed to send Slack message. Status: ${response.status} Error: ${await response.text()}`;
+      logger.error(error);
+      throw new Error(error);
     }
 
-    await sendToSlack(webhookUrl, typeof error === 'string' ? error : error.message);
-  } catch (slackError) {
-    console.error('Failed to send error message to Slack:', slackError);
+    logger.info('Successfully sent message to Slack');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error sending to Slack';
+    logger.error(`Error in sendToSlack: ${errorMessage}`);
+    throw error;
+  }
+}
+
+export async function sendErrorToSlack(error: string) {
+  logger.warn('Sending failure message to Slack...');
+  try {
+    await sendToSlack(JSON.stringify({ text: error }));
+    logger.info('Successfully sent error message to Slack');
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    logger.error(`Failed to send error message to Slack: ${errorMessage}`);
   }
 }
 
@@ -116,37 +122,54 @@ export async function updateAssignmentsOnly(options: {
 // 只发送 Slack 通知
 export async function sendNotificationOnly() {
   try {
-    console.log('Getting system configs for Slack notification...');
-    const configs = await getSystemConfigs();
-    const webhookConfig = configs.find(c => c.key === 'Slack:WebhookUrl');
-    const webhookUrl = webhookConfig?.value;
-
-    console.log('Webhook config:', {
-      found: !!webhookConfig,
-      url: webhookUrl ? `${webhookUrl.substring(0, 20)}...` : 'not set'
-    });
-
-    if (!webhookUrl) {
-      throw new Error('Slack webhook URL is not configured');
-    }
-
-    console.log('Getting task assignments...');
+    logger.info('Getting task assignments...');
     const assignments = await getTaskAssignmentsWithDetails();
-    console.log(`Found ${assignments.length} assignments`);
+    logger.info(`Found ${assignments.length} assignments`);
 
     const messageText = await getSlackMessage(assignments);
-    console.log('Generated Slack message:', messageText ? 'yes' : 'no');
+    logger.info(`Generated Slack message: ${!!messageText}`);
     
     if (messageText) {
-      console.log('Sending notification to Slack...');
-      await sendToSlack(webhookUrl, messageText);
-      console.log('Notification sent successfully');
+      logger.info('Sending notification to Slack...');
+      await sendToSlack(JSON.stringify({ text: messageText }));
+      logger.info('Notification sent successfully');
     }
 
     return { success: true, message: 'Notifications sent successfully' };
   } catch (error) {
     console.error('Error in sendNotificationOnly:', error);
-    await sendErrorToSlack(error instanceof Error ? error : new Error(String(error)));
+    await sendErrorToSlack(error instanceof Error ? error.message : String(error));
+    throw error;
+  }
+} 
+
+export async function updateRotation() {
+  logger.info('Starting rotation update process...');
+  try {
+    // 先更新任务分配
+    const updateResult = await updateAssignmentsOnly({ 
+      checkWorkingDay: true
+    });
+
+    // 如果不是工作日，直接返回
+    if (updateResult.message === 'Not a working day, skipping update') {
+      logger.info('Not a working day, skipping update');
+      return { message: updateResult.message, skipped: true };
+    }
+
+    logger.info('Assignments updated successfully, sending notification...');
+    // 再发送通知
+    const notificationResult = await sendNotificationOnly();
+    
+    logger.info('Rotation update completed successfully');
+    return { 
+      message: 'Rotation updated and notification sent',
+      updateResult,
+      notificationResult
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error(`Error in updateRotation: ${errorMessage}`);
     throw error;
   }
 } 

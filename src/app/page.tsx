@@ -29,6 +29,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getAssignments, getMembers, updateAssignment, triggerRotationUpdate, sendToSlack } from '@/services/api';
 import { format, parseISO } from 'date-fns';
 import { TaskAssignmentWithDetails, Member } from '@/types';
+import { LogViewer } from "./components/LogViewer";
 
 export default function Dashboard() {
   const [selectedTab, setSelectedTab] = useState(0);
@@ -236,46 +237,59 @@ export default function Dashboard() {
         >
           <Tab label="Current Assignments" />
           <Tab label="History" />
+          <Tab label="System Logs" />
         </Tabs>
 
         {selectedTab === 0 && (
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Task</TableCell>
-                  <TableCell>Assignee</TableCell>
-                  <TableCell>Start Date</TableCell>
-                  <TableCell>End Date</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {assignments.map((assignment) => (
-                  <TableRow key={assignment.id}>
-                    <TableCell>{assignment.taskName}</TableCell>
-                    <TableCell>{assignment.host}</TableCell>
-                    <TableCell>{format(parseISO(assignment.startDate), 'yyyy-MM-dd')}</TableCell>
-                    <TableCell>{format(parseISO(assignment.endDate), 'yyyy-MM-dd')}</TableCell>
-                    <TableCell>
-                      <Button
-                        startIcon={<EditIcon />}
-                        onClick={() => handleEditClick(assignment)}
-                      >
-                        Edit
-                      </Button>
-                    </TableCell>
+          <>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Task</TableCell>
+                    <TableCell>Assignee</TableCell>
+                    <TableCell>Start Date</TableCell>
+                    <TableCell>End Date</TableCell>
+                    <TableCell>Actions</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                </TableHead>
+                <TableBody>
+                  {assignments.map((assignment) => (
+                    <TableRow key={assignment.id}>
+                      <TableCell>{assignment.taskName}</TableCell>
+                      <TableCell>{assignment.host}</TableCell>
+                      <TableCell>{format(parseISO(assignment.startDate), 'yyyy-MM-dd')}</TableCell>
+                      <TableCell>{format(parseISO(assignment.endDate), 'yyyy-MM-dd')}</TableCell>
+                      <TableCell>
+                        <Button
+                          startIcon={<EditIcon />}
+                          onClick={() => handleEditClick(assignment)}
+                        >
+                          Edit
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <Paper sx={{ mt: 2, p: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                System Logs
+              </Typography>
+              <LogViewer />
+            </Paper>
+          </>
         )}
 
         {selectedTab === 1 && (
           <Typography variant="body1" sx={{ p: 2 }}>
             Assignment history will be implemented soon.
           </Typography>
+        )}
+
+        {selectedTab === 2 && (
+          <LogViewer />
         )}
       </Box>
 

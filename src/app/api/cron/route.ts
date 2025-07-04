@@ -1,27 +1,19 @@
 import { NextResponse } from 'next/server';
-import { updateAssignmentsOnly, sendNotificationOnly } from '@/services/assignments';
+import { updateRotation } from '@/services/assignments';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
-    // 先更新任务分配
-    const updateResult = await updateAssignmentsOnly({ 
-      checkWorkingDay: true
-    });
-
-    // 如果不是工作日，直接返回
-    if (updateResult.message === 'Not a working day, skipping update') {
-      return NextResponse.json({ message: updateResult.message });
-    }
-
-    // 再发送通知
-    await sendNotificationOnly();
-    
-    return NextResponse.json({ message: 'Cron job completed successfully' });
+    logger.info('Starting cron job for rotation update...');
+    const result = await updateRotation();
+    logger.info(`Rotation update completed with result: ${JSON.stringify(result)}`);
+    return NextResponse.json({ message: 'Cron job executed successfully', result });
   } catch (error) {
-    console.error('Error in cron job:', error);
-    return NextResponse.json(
-      { error: 'Failed to execute cron job' },
-      { status: 500 }
-    );
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error(`Cron job failed: ${errorMessage}`);
+    if (error instanceof Error && error.stack) {
+      logger.error(`Stack trace: ${error.stack}`);
+    }
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 } 
