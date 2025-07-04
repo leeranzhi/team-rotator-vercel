@@ -29,7 +29,7 @@ export async function POST() {
     return NextResponse.json({ message: 'Successfully sent message to Slack' });
   } catch (error) {
     console.error('Error sending message to Slack:', error);
-    await sendErrorToSlack(error instanceof Error ? error : new Error(String(error)));
+    await sendErrorToSlack(error instanceof Error ? error.message : String(error));
     return NextResponse.json(
       { error: 'Failed to send message to Slack' },
       { status: 500 }
