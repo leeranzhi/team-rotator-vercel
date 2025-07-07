@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getTaskAssignmentsWithDetails, getSystemConfigs } from '@/lib/db';
-import { getSlackMessage, sendToSlack, sendErrorToSlack } from '@/services/assignments';
+import { getSlackMessage, sendToSlack } from '@/services/assignments';
+import { logger } from '@/lib/logger';
 
 export async function POST() {
   try {
@@ -28,8 +29,8 @@ export async function POST() {
     await sendToSlack(webhookUrl, message);
     return NextResponse.json({ message: 'Successfully sent message to Slack' });
   } catch (error) {
-    console.error('Error sending message to Slack:', error);
-    await sendErrorToSlack(error instanceof Error ? error.message : String(error));
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Error sending message to Slack: ${errorMessage}`);
     return NextResponse.json(
       { error: 'Failed to send message to Slack' },
       { status: 500 }
