@@ -19,6 +19,7 @@ import {
   createTheme,
   CssBaseline,
   ListItemButton,
+  alpha,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -95,40 +96,76 @@ export default function RootLayout({
                 }
               }}
               sx={{
+                my: 0.5,
+                mx: 1,
+                borderRadius: 1,
                 '&:hover': {
-                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                  backgroundColor: alpha(theme.palette.primary.main, 0.04),
                 },
                 '&.Mui-selected': {
-                  backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                  backgroundColor: alpha(theme.palette.primary.main, 0.08),
                   '&:hover': {
-                    backgroundColor: 'rgba(25, 118, 210, 0.16)',
+                    backgroundColor: alpha(theme.palette.primary.main, 0.12),
+                  },
+                  '& .MuiListItemIcon-root': {
+                    color: 'primary.main',
+                  },
+                  '& .MuiListItemText-primary': {
+                    color: 'primary.main',
+                    fontWeight: 500,
                   },
                 },
                 position: 'relative',
                 overflow: 'hidden',
+                transition: theme.transitions.create(['background-color', 'color'], {
+                  duration: theme.transitions.duration.shorter,
+                }),
                 '&::before': {
                   content: '""',
+                  display: 'block',
                   position: 'absolute',
                   top: '50%',
                   left: '50%',
                   width: '100%',
                   height: '100%',
-                  backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                  backgroundColor: alpha(theme.palette.primary.main, 0.08),
                   borderRadius: '50%',
                   transform: 'translate(-50%, -50%) scale(0)',
-                  transition: 'transform 0.3s ease-out, opacity 0.3s ease-out',
+                  transition: theme.transitions.create(['transform', 'opacity'], {
+                    duration: theme.transitions.duration.shortest,
+                  }),
                   opacity: 0,
                   pointerEvents: 'none',
                 },
                 '&:active::before': {
-                  transform: 'translate(-50%, -50%) scale(3)',
+                  transform: 'translate(-50%, -50%) scale(2.5)',
                   opacity: 1,
-                  transition: 'transform 0.4s ease-out, opacity 0s',
+                  transition: theme.transitions.create(['transform'], {
+                    duration: theme.transitions.duration.shortest,
+                  }),
                 },
               }}
             >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
+              <ListItemIcon 
+                sx={{
+                  minWidth: 40,
+                  color: pathname === item.path ? 'primary.main' : 'inherit',
+                  transition: theme.transitions.create('color'),
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText 
+                primary={item.text}
+                sx={{
+                  '& .MuiListItemText-primary': {
+                    fontSize: '0.875rem',
+                    fontWeight: pathname === item.path ? 500 : 400,
+                    color: pathname === item.path ? 'primary.main' : 'inherit',
+                    transition: theme.transitions.create(['color', 'font-weight']),
+                  },
+                }}
+              />
             </ListItemButton>
           </Link>
         ))}
