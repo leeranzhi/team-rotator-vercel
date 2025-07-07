@@ -63,14 +63,18 @@ export async function sendToSlack(message: string, webhookUrl?: string) {
 
   try {
     logger.info('Sending notification to Slack...');
-    logger.info(`Sending Slack message with:\nWebhook URL: ${url}\nMessage Body: ${message}`);
+    const messageBody = typeof message === 'string' && !message.startsWith('{') 
+      ? JSON.stringify({ text: message })
+      : message;
+    
+    logger.info(`Sending Slack message with:\nMessage Body: ${messageBody}\nWebhook URL: ${url}`);
     
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: message,
+      body: messageBody,
     });
 
     if (!response.ok) {
@@ -131,7 +135,7 @@ export async function sendNotificationOnly() {
     
     if (messageText) {
       logger.info('Sending notification to Slack...');
-      await sendToSlack(JSON.stringify({ text: messageText }));
+      await sendToSlack(messageText);
       logger.info('Notification sent successfully');
     }
 
