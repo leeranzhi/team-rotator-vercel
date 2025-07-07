@@ -11,31 +11,28 @@ import {
   Alert,
   Snackbar
 } from '@mui/material';
-import { getWebhookUrl, updateWebhookUrl, getSystemConfigs, saveSystemConfig } from '@/services/api';
+import { getSystemConfigs, saveSystemConfig } from '@/services/api';
 
 export default function Settings() {
   const [webhookUrl, setWebhookUrl] = useState('');
-  const [personalWebhookUrl, setPersonalWebhookUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastSaved, setLastSaved] = useState<number>(0); // 添加一个状态来跟踪最后保存的时间
+  const [lastSaved, setLastSaved] = useState<number>(0);
 
   useEffect(() => {
     const fetchConfigs = async () => {
       try {
         const configs = await getSystemConfigs();
         const webhookConfig = configs.find(c => c.key === 'Slack:WebhookUrl');
-        const personalWebhookConfig = configs.find(c => c.key === 'Slack:PersonalWebhookUrl');
         setWebhookUrl(webhookConfig?.value || '');
-        setPersonalWebhookUrl(personalWebhookConfig?.value || '');
       } catch (err) {
         setError('Failed to load settings');
       }
     };
 
     fetchConfigs();
-  }, [lastSaved]); // 添加 lastSaved 作为依赖项
+  }, [lastSaved]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,22 +40,14 @@ export default function Settings() {
     setError(null);
 
     try {
-      await Promise.all([
-        saveSystemConfig({
-          key: 'Slack:WebhookUrl',
-          value: webhookUrl,
-          lastModified: new Date().toISOString(),
-          modifiedBy: null
-        }),
-        saveSystemConfig({
-          key: 'Slack:PersonalWebhookUrl',
-          value: personalWebhookUrl,
-          lastModified: new Date().toISOString(),
-          modifiedBy: null
-        })
-      ]);
+      await saveSystemConfig({
+        key: 'Slack:WebhookUrl',
+        value: webhookUrl,
+        lastModified: new Date().toISOString(),
+        modifiedBy: null
+      });
       setShowSuccess(true);
-      setLastSaved(Date.now()); // 更新最后保存的时间
+      setLastSaved(Date.now());
     } catch (err) {
       setError('Failed to update settings');
     } finally {
@@ -77,19 +66,11 @@ export default function Settings() {
             <Typography variant="h6">Slack Integration</Typography>
             <TextField
               fullWidth
-              label="Team Webhook URL"
+              label="Webhook URL"
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
               placeholder="https://hooks.slack.com/services/..."
-              helperText="Enter your team's Slack webhook URL for notifications"
-            />
-            <TextField
-              fullWidth
-              label="Personal Webhook URL"
-              value={personalWebhookUrl}
-              onChange={(e) => setPersonalWebhookUrl(e.target.value)}
-              placeholder="https://hooks.slack.com/services/..."
-              helperText="Enter your personal Slack webhook URL for error notifications (optional)"
+              helperText="Enter your Slack webhook URL for notifications"
             />
             <Box>
               <Button

@@ -91,26 +91,6 @@ export async function sendToSlack(webhookUrl: string, message: string) {
   }
 }
 
-export async function sendErrorToSlack(error: string) {
-  logger.warn('Sending failure message to Slack...');
-  try {
-    const configs = await getSystemConfigs();
-    const webhookConfig = configs.find(c => c.key === 'Slack:WebhookUrl');
-    const webhookUrl = webhookConfig?.value;
-    
-    if (!webhookUrl) {
-      logger.error('Slack webhook URL not configured');
-      return;
-    }
-    
-    await sendToSlack(webhookUrl, JSON.stringify({ text: error }));
-    logger.info('Successfully sent error message to Slack');
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-    logger.error(`Failed to send error message to Slack: ${errorMessage}`);
-  }
-}
-
 // 只更新任务分配，不发送通知
 export async function updateAssignmentsOnly(options: { 
   checkWorkingDay?: boolean,
@@ -160,8 +140,8 @@ export async function sendNotificationOnly() {
 
     return { success: true, message: 'Notifications sent successfully' };
   } catch (error) {
-    console.error('Error in sendNotificationOnly:', error);
-    await sendErrorToSlack(error instanceof Error ? error.message : String(error));
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Error in sendNotificationOnly: ${errorMessage}`);
     throw error;
   }
 } 
