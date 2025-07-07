@@ -47,7 +47,7 @@ export async function getSlackMessage(assignments: any[]) {
   return messageBuilder.join('');
 }
 
-export async function sendToSlack(message: string, webhookUrl?: string) {
+export async function sendToSlack(webhookUrl: string, message: string) {
   logger.info('Getting system configs for Slack notification...');
   const configs = await getSystemConfigs();
   const webhookConfig = configs.find(c => c.key === 'Slack:WebhookUrl');
@@ -67,7 +67,7 @@ export async function sendToSlack(message: string, webhookUrl?: string) {
       ? JSON.stringify({ text: message })
       : message;
     
-    logger.info(`Sending Slack message with:\nMessage Body: ${messageBody}\nWebhook URL: ${url}`);
+    logger.info(`Sending Slack message with:\nWebhook URL: ${url}\nMessage Body: ${messageBody}`);
     
     const response = await fetch(url, {
       method: 'POST',
@@ -94,7 +94,16 @@ export async function sendToSlack(message: string, webhookUrl?: string) {
 export async function sendErrorToSlack(error: string) {
   logger.warn('Sending failure message to Slack...');
   try {
-    await sendToSlack(JSON.stringify({ text: error }));
+    const configs = await getSystemConfigs();
+    const webhookConfig = configs.find(c => c.key === 'Slack:WebhookUrl');
+    const webhookUrl = webhookConfig?.value;
+    
+    if (!webhookUrl) {
+      logger.error('Slack webhook URL not configured');
+      return;
+    }
+    
+    await sendToSlack(webhookUrl, JSON.stringify({ text: error }));
     logger.info('Successfully sent error message to Slack');
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -137,7 +146,15 @@ export async function sendNotificationOnly() {
     
     if (messageText) {
       logger.info('Sending notification to Slack...');
-      await sendToSlack(messageText);
+      const configs = await getSystemConfigs();
+      const webhookConfig = configs.find(c => c.key === 'Slack:WebhookUrl');
+      const webhookUrl = webhookConfig?.value;
+      
+      if (!webhookUrl) {
+        throw new Error('Slack webhook URL not configured');
+      }
+      
+      await sendToSlack(webhookUrl, messageText);
       logger.info('Notification sent successfully');
     }
 
