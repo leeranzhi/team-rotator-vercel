@@ -104,13 +104,15 @@ export async function sendErrorToSlack(error: string) {
 
 // 只更新任务分配，不发送通知
 export async function updateAssignmentsOnly(options: { 
-  checkWorkingDay?: boolean
+  checkWorkingDay?: boolean,
+  date?: Date
 } = {}) {
-  const { checkWorkingDay = false } = options;
+  const { checkWorkingDay = false, date = new Date() } = options;
 
   try {
     // 检查是否是工作日（如果需要）
-    if (checkWorkingDay && !await isWorkingDay()) {
+    if (checkWorkingDay && !await isWorkingDay(date)) {
+      logger.info(`${date.toISOString().split('T')[0]} is not a working day. Skipping member rotation.`);
       return { success: true, message: 'Not a working day, skipping update' };
     }
 
@@ -150,9 +152,13 @@ export async function sendNotificationOnly() {
 export async function updateRotation() {
   logger.info('Starting rotation update process...');
   try {
+    const today = new Date();
+    logger.info(`Checking rotation for date: ${today.toISOString().split('T')[0]}`);
+    
     // 先更新任务分配
     const updateResult = await updateAssignmentsOnly({ 
-      checkWorkingDay: true
+      checkWorkingDay: true,
+      date: today
     });
 
     // 如果不是工作日，直接返回
