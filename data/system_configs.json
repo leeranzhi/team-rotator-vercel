@@ -1,14 +1,14 @@
 [
   {
     "key": "Slack:WebhookUrl",
-    "value": "https://hooks.slack.com/services/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10100",
-    "lastModified": "2025-07-02T08:08:05.815Z",
+    "value": "https://hooks.slack.com/services/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",
+    "lastModified": "2025-07-07T03:03:29.114Z",
     "modifiedBy": null
   },
   {
     "key": "Slack:PersonalWebhookUrl",
     "value": "https://hooks.slack.com/services/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1111",
-    "lastModified": "2025-07-02T08:02:08.950Z",
+    "lastModified": "2025-07-07T03:03:29.114Z",
     "modifiedBy": null
   }
 ]
