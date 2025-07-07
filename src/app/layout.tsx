@@ -18,6 +18,7 @@ import {
   ThemeProvider,
   createTheme,
   CssBaseline,
+  ListItemButton,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -28,6 +29,7 @@ import {
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { usePathname } from 'next/navigation';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -61,6 +63,7 @@ export default function RootLayout({
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const pathname = usePathname();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -84,16 +87,49 @@ export default function RootLayout({
       <List>
         {menuItems.map((item) => (
           <Link key={item.text} href={item.path} style={{ textDecoration: 'none', color: 'inherit' }}>
-            <ListItem
+            <ListItemButton
+              selected={pathname === item.path}
               onClick={() => {
                 if (isMobile) {
                   handleDrawerToggle();
                 }
               }}
+              sx={{
+                '&:hover': {
+                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                },
+                '&.Mui-selected': {
+                  backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(25, 118, 210, 0.16)',
+                  },
+                },
+                position: 'relative',
+                overflow: 'hidden',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  width: '100%',
+                  height: '100%',
+                  backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                  borderRadius: '50%',
+                  transform: 'translate(-50%, -50%) scale(0)',
+                  transition: 'transform 0.3s ease-out, opacity 0.3s ease-out',
+                  opacity: 0,
+                  pointerEvents: 'none',
+                },
+                '&:active::before': {
+                  transform: 'translate(-50%, -50%) scale(3)',
+                  opacity: 1,
+                  transition: 'transform 0.4s ease-out, opacity 0s',
+                },
+              }}
             >
               <ListItemIcon>{item.icon}</ListItemIcon>
               <ListItemText primary={item.text} />
-            </ListItem>
+            </ListItemButton>
           </Link>
         ))}
       </List>
