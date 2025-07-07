@@ -79,16 +79,17 @@ export async function updateTaskAssignments(): Promise<void> {
 
     if (today <= endDate) continue;
 
-    // 对于每日任务，先检查今天是否是工作日
+    // 使用当前日期作为基准来计算下一个轮转周期
+    const { startDate: newStartDate, endDate: newEndDate } = calculateNextRotationDates(
+      task.rotationRule,
+      today
+    );
+
+    // 对于每日任务，检查是否是工作日
     if (task.rotationRule === 'daily' && !(await isWorkingDay(today))) {
       console.log(`${today.toISOString().split('T')[0]} is not a working day. Skipping member rotation for AssignmentId ${assignment.id}`);
       continue;
     }
-
-    const { startDate: newStartDate, endDate: newEndDate } = calculateNextRotationDates(
-      task.rotationRule,
-      endDate
-    );
 
     const newMemberId = rotateMemberList(assignment.memberId, members);
 
