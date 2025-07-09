@@ -1,6 +1,7 @@
 import { Member, Task, TaskAssignment } from '@/types';
 import { getMembers, getTasks, getTaskAssignments, updateTaskAssignment } from './db';
 import { isWorkingDay } from './holiday';
+import { logger } from './logger';
 
 export function getNextDayAfterTargetDay(start: Date, targetDay: number): Date {
   const daysToAdd = (targetDay - start.getDay() + 7) % 7;
@@ -79,19 +80,24 @@ export async function updateTaskAssignments(): Promise<void> {
 
     if (today <= endDate) continue;
 
-    // 使用当前日期作为基准来计算下一个轮转周期
+    // 使用当前 assignment 的 endDate 作为基准来计算下一个轮转周期
     const { startDate: newStartDate, endDate: newEndDate } = calculateNextRotationDates(
       task.rotationRule,
-      today
+      endDate
     );
 
     // 对于每日任务，检查是否是工作日
     if (task.rotationRule === 'daily' && !(await isWorkingDay(today))) {
-      console.log(`${today.toISOString().split('T')[0]} is not a working day. Skipping member rotation for AssignmentId ${assignment.id}`);
+      logger.info(`${today.toISOString().split('T')[0]} is not a working day. Skipping member rotation for AssignmentId ${assignment.id}`);
       continue;
     }
 
     const newMemberId = rotateMemberList(assignment.memberId, members);
+
+    logger.info(`Updating assignment ${assignment.id}:
+      Task: ${task.name}
+      Current: ${assignment.startDate} - ${assignment.endDate} (Member: ${assignment.memberId})
+      New: ${newStartDate.toISOString().split('T')[0]} - ${newEndDate.toISOString().split('T')[0]} (Member: ${newMemberId})`);
 
     await updateTaskAssignment({
       ...assignment,
