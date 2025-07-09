@@ -1,204 +1,188 @@
-import { promises as fs } from 'fs';
-import path from 'path';
-import { Member, Task, TaskAssignment, SystemConfig, TaskAssignmentWithDetails } from '@/types';
-import { kv } from '@vercel/kv';
+import { Member, Task, TaskAssignment, SystemConfig, EdgeConfigClient } from '@/types';
+import { createClient } from '@vercel/edge-config';
 import { logger } from './logger';
 
-const dataDirectory = path.join(process.cwd(), 'data');
+const edgeConfig = createClient(process.env.EDGE_CONFIG) as unknown as EdgeConfigClient;
 
-// Key prefixes for KV store
-const KV_KEYS = {
-  MEMBERS: 'members',
-  TASKS: 'tasks',
-  ASSIGNMENTS: 'assignments',
-  CONFIGS: 'configs',
-} as const;
+// 内存缓存，用于开发环境
+let membersCache: Member[] = [];
+let tasksCache: Task[] = [];
+let taskAssignmentsCache: TaskAssignment[] = [];
+let systemConfigsCache: SystemConfig[] = [];
 
-// In-memory cache with TTL
-type CacheItem<T> = {
-  data: T[];
-  timestamp: number;
-};
+const isDev = process.env.NODE_ENV === 'development';
 
-const CACHE_TTL = 60 * 1000; // 1 minute
-let cache: {
-  [key: string]: CacheItem<any> | null;
-} = {
-  [KV_KEYS.MEMBERS]: null,
-  [KV_KEYS.TASKS]: null,
-  [KV_KEYS.ASSIGNMENTS]: null,
-  [KV_KEYS.CONFIGS]: null,
-};
-
-// 确保数据目录存在（仅用于开发环境）
-async function ensureDataDirectory() {
-  if (process.env.NODE_ENV === 'production') return;
-  try {
-    await fs.access(dataDirectory);
-  } catch {
-    await fs.mkdir(dataDirectory, { recursive: true });
-  }
-}
-
-// 通用的读取JSON文件函数（仅用于开发环境）
-async function readJsonFile<T>(filename: string): Promise<T[]> {
-  try {
-    const filePath = path.join(dataDirectory, filename);
-    const jsonData = await fs.readFile(filePath, 'utf8');
-    return JSON.parse(jsonData);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return [];
-    }
-    throw error;
-  }
-}
-
-// 通用的写入JSON文件函数（仅用于开发环境）
-async function writeJsonFile<T>(filename: string, data: T[]): Promise<void> {
-  if (process.env.NODE_ENV === 'production') return;
-  await ensureDataDirectory();
-  const filePath = path.join(dataDirectory, filename);
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2));
-}
-
-// 通用的获取数据函数
-async function getData<T>(key: string, filename: string): Promise<T[]> {
-  // 检查缓存是否有效
-  const cacheItem = cache[key];
-  if (cacheItem && Date.now() - cacheItem.timestamp < CACHE_TTL) {
-    return cacheItem.data;
-  }
-
-  try {
-    if (process.env.NODE_ENV === 'production') {
-      // 在生产环境使用 Vercel KV
-      const data = await kv.get<T[]>(key) || [];
-      // 更新缓存
-      cache[key] = {
-        data,
-        timestamp: Date.now(),
-      };
-      return data;
-    } else {
-      // 在开发环境使用文件系统
-      const data = await readJsonFile<T>(filename);
-      // 更新缓存
-      cache[key] = {
-        data,
-        timestamp: Date.now(),
-      };
-      return data;
-    }
-  } catch (error) {
-    logger.error(`Error getting data for ${key}: ${error}`);
-    return [];
-  }
-}
-
-// 通用的保存数据函数
-async function saveData<T>(key: string, filename: string, data: T[]): Promise<void> {
-  try {
-    if (process.env.NODE_ENV === 'production') {
-      // 在生产环境使用 Vercel KV
-      await kv.set(key, data);
-    } else {
-      // 在开发环境使用文件系统
-      await writeJsonFile(filename, data);
-    }
-    // 更新缓存
-    cache[key] = {
-      data,
-      timestamp: Date.now(),
-    };
-  } catch (error) {
-    logger.error(`Error saving data for ${key}: ${error}`);
-    throw error;
-  }
+// 辅助函数：确保数组存在
+function ensureArray<T>(value: T[] | null | undefined): T[] {
+  return value || [];
 }
 
 // Members
 export async function getMembers(): Promise<Member[]> {
-  return getData<Member>(KV_KEYS.MEMBERS, 'members.json');
+  if (isDev) {
+    return membersCache;
+  }
+  
+  try {
+    const members = await edgeConfig.get('members') as Member[];
+    return ensureArray(members);
+  } catch (error) {
+    logger.error('Failed to get members from Edge Config');
+    return [];
+  }
 }
 
-export async function saveMember(member: Member): Promise<Member> {
-  const members = await getMembers();
-  const newId = members.length > 0 ? Math.max(...members.map(m => m.id)) + 1 : 1;
-  const newMember = { ...member, id: newId };
-  members.push(newMember);
-  await saveData(KV_KEYS.MEMBERS, 'members.json', members);
-  return newMember;
+export async function updateMember(member: Member): Promise<void> {
+  if (isDev) {
+    const index = membersCache.findIndex(m => m.id === member.id);
+    if (index !== -1) {
+      membersCache[index] = member;
+    } else {
+      membersCache.push(member);
+    }
+    return;
+  }
+
+  try {
+    const members = await getMembers();
+    const index = members.findIndex(m => m.id === member.id);
+    if (index !== -1) {
+      members[index] = member;
+    } else {
+      members.push(member);
+    }
+    await edgeConfig.set('members', members);
+  } catch (error) {
+    logger.error('Failed to update member in Edge Config');
+    throw error;
+  }
 }
 
 // Tasks
 export async function getTasks(): Promise<Task[]> {
-  return getData<Task>(KV_KEYS.TASKS, 'tasks.json');
+  if (isDev) {
+    return tasksCache;
+  }
+
+  try {
+    const tasks = await edgeConfig.get('tasks') as Task[];
+    return ensureArray(tasks);
+  } catch (error) {
+    logger.error('Failed to get tasks from Edge Config');
+    return [];
+  }
 }
 
-export async function saveTask(task: Task): Promise<Task> {
-  const tasks = await getTasks();
-  const newId = tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
-  const newTask = { ...task, id: newId };
-  tasks.push(newTask);
-  await saveData(KV_KEYS.TASKS, 'tasks.json', tasks);
-  return newTask;
+export async function updateTask(task: Task): Promise<void> {
+  if (isDev) {
+    const index = tasksCache.findIndex(t => t.id === task.id);
+    if (index !== -1) {
+      tasksCache[index] = task;
+    } else {
+      tasksCache.push(task);
+    }
+    return;
+  }
+
+  try {
+    const tasks = await getTasks();
+    const index = tasks.findIndex(t => t.id === task.id);
+    if (index !== -1) {
+      tasks[index] = task;
+    } else {
+      tasks.push(task);
+    }
+    await edgeConfig.set('tasks', tasks);
+  } catch (error) {
+    logger.error('Failed to update task in Edge Config');
+    throw error;
+  }
 }
 
 // Task Assignments
 export async function getTaskAssignments(): Promise<TaskAssignment[]> {
-  return getData<TaskAssignment>(KV_KEYS.ASSIGNMENTS, 'task_assignments.json');
-}
-
-export async function saveTaskAssignment(assignment: TaskAssignment): Promise<TaskAssignment> {
-  const assignments = await getTaskAssignments();
-  const newId = assignments.length > 0 ? Math.max(...assignments.map(a => a.id)) + 1 : 1;
-  const newAssignment = { ...assignment, id: newId };
-  assignments.push(newAssignment);
-  await saveData(KV_KEYS.ASSIGNMENTS, 'task_assignments.json', assignments);
-  return newAssignment;
-}
-
-export async function updateTaskAssignment(assignment: TaskAssignment): Promise<TaskAssignment> {
-  const assignments = await getTaskAssignments();
-  const index = assignments.findIndex(a => a.id === assignment.id);
-  if (index === -1) {
-    throw new Error('Assignment not found');
+  if (isDev) {
+    return taskAssignmentsCache;
   }
-  
-  // Only save essential fields
-  const essentialAssignment = {
-    id: assignment.id,
-    taskId: assignment.taskId,
-    memberId: assignment.memberId,
-    startDate: assignment.startDate,
-    endDate: assignment.endDate
-  };
-  
-  assignments[index] = essentialAssignment;
-  await saveData(KV_KEYS.ASSIGNMENTS, 'task_assignments.json', assignments);
-  return essentialAssignment;
+
+  try {
+    const assignments = await edgeConfig.get('taskAssignments') as TaskAssignment[];
+    return ensureArray(assignments);
+  } catch (error) {
+    logger.error('Failed to get task assignments from Edge Config');
+    return [];
+  }
+}
+
+export async function updateTaskAssignment(assignment: TaskAssignment): Promise<void> {
+  if (isDev) {
+    const index = taskAssignmentsCache.findIndex(a => a.id === assignment.id);
+    if (index !== -1) {
+      taskAssignmentsCache[index] = assignment;
+    } else {
+      taskAssignmentsCache.push(assignment);
+    }
+    return;
+  }
+
+  try {
+    const assignments = await getTaskAssignments();
+    const index = assignments.findIndex(a => a.id === assignment.id);
+    if (index !== -1) {
+      assignments[index] = assignment;
+    } else {
+      assignments.push(assignment);
+    }
+    await edgeConfig.set('taskAssignments', assignments);
+  } catch (error) {
+    logger.error('Failed to update task assignment in Edge Config');
+    throw error;
+  }
 }
 
 // System Configs
 export async function getSystemConfigs(): Promise<SystemConfig[]> {
-  return getData<SystemConfig>(KV_KEYS.CONFIGS, 'system_configs.json');
-}
-
-export async function saveSystemConfig(config: SystemConfig): Promise<SystemConfig> {
-  const configs = await getSystemConfigs();
-  const existingIndex = configs.findIndex(c => c.key === config.key);
-  if (existingIndex !== -1) {
-    configs[existingIndex] = config;
-  } else {
-    configs.push(config);
+  if (isDev) {
+    return systemConfigsCache;
   }
-  await saveData(KV_KEYS.CONFIGS, 'system_configs.json', configs);
-  return config;
+
+  try {
+    const configs = await edgeConfig.get('systemConfigs') as SystemConfig[];
+    return ensureArray(configs);
+  } catch (error) {
+    logger.error('Failed to get system configs from Edge Config');
+    return [];
+  }
 }
 
-// 获取带详细信息的任务分配列表
-export async function getTaskAssignmentsWithDetails(): Promise<TaskAssignmentWithDetails[]> {
+export async function saveSystemConfig(config: SystemConfig): Promise<void> {
+  if (isDev) {
+    const index = systemConfigsCache.findIndex(c => c.key === config.key);
+    if (index !== -1) {
+      systemConfigsCache[index] = config;
+    } else {
+      systemConfigsCache.push(config);
+    }
+    return;
+  }
+
+  try {
+    const configs = await getSystemConfigs();
+    const index = configs.findIndex(c => c.key === config.key);
+    if (index !== -1) {
+      configs[index] = config;
+    } else {
+      configs.push(config);
+    }
+    await edgeConfig.set('systemConfigs', configs);
+  } catch (error) {
+    logger.error('Failed to save system config in Edge Config');
+    throw error;
+  }
+}
+
+// 用于获取带有详细信息的任务分配
+export async function getTaskAssignmentsWithDetails(): Promise<any[]> {
   const [assignments, tasks, members] = await Promise.all([
     getTaskAssignments(),
     getTasks(),
@@ -210,19 +194,38 @@ export async function getTaskAssignmentsWithDetails(): Promise<TaskAssignmentWit
     const member = members.find(m => m.id === assignment.memberId);
     return {
       ...assignment,
-      taskName: task?.name || '',
-      host: member?.host || '',
-      slackMemberId: member?.slackMemberId || '',
+      taskName: task?.name || 'Unknown Task',
+      memberName: member?.name || 'Unknown Member',
+      slackMemberId: member?.slackMemberId || 'Unknown',
     };
   });
 }
 
-// Reset cache
-export function resetCache() {
-  cache = {
-    [KV_KEYS.MEMBERS]: null,
-    [KV_KEYS.TASKS]: null,
-    [KV_KEYS.ASSIGNMENTS]: null,
-    [KV_KEYS.CONFIGS]: null,
-  };
+// 初始化函数
+export async function initializeDB(): Promise<void> {
+  if (!isDev) {
+    try {
+      // 检查是否需要初始化
+      const [members, tasks, assignments, configs] = await Promise.all([
+        edgeConfig.get('members'),
+        edgeConfig.get('tasks'),
+        edgeConfig.get('taskAssignments'),
+        edgeConfig.get('systemConfigs'),
+      ]);
+
+      // 如果所有数据都不存在，则初始化
+      if (!members && !tasks && !assignments && !configs) {
+        await Promise.all([
+          edgeConfig.set('members', []),
+          edgeConfig.set('tasks', []),
+          edgeConfig.set('taskAssignments', []),
+          edgeConfig.set('systemConfigs', []),
+        ]);
+        logger.info('Initialized Edge Config storage');
+      }
+    } catch (error) {
+      logger.error('Failed to initialize Edge Config storage');
+      throw error;
+    }
+  }
 } 
