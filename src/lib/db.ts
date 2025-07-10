@@ -196,16 +196,18 @@ export async function getTaskAssignmentsWithDetails(): Promise<any[]> {
     getMembers(),
   ]);
 
-  return assignments.map(assignment => {
-    const task = tasks.find(t => t.id === assignment.taskId);
-    const member = members.find(m => m.id === assignment.memberId);
-    return {
-      ...assignment,
-      taskName: task?.name || 'Unknown Task',
-      host: member?.host || 'Unknown Member',
-      slackMemberId: member?.slackMemberId || 'Unknown',
-    };
-  });
+  return assignments
+    .map(assignment => {
+      const task = tasks.find(t => t.id === assignment.taskId);
+      const member = members.find(m => m.id === assignment.memberId);
+      return {
+        ...assignment,
+        taskName: task?.name || 'Unknown Task',
+        host: member?.host || 'Unknown Member',
+        slackMemberId: member?.slackMemberId || 'Unknown',
+      };
+    })
+    .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());  // 按开始日期降序排序
 }
 
 // 初始化函数
