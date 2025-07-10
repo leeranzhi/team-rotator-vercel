@@ -119,17 +119,18 @@ export default function Dashboard() {
   };
 
   const getCurrentAssignments = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);  // 设置时间为当天的开始
-    return assignments
-      .filter(assignment => {
-        const startDate = parseISO(assignment.startDate);
-        const endDate = parseISO(assignment.endDate);
-        startDate.setHours(0, 0, 0, 0);  // 设置时间为当天的开始
-        endDate.setHours(23, 59, 59, 999);  // 设置时间为当天的结束
-        return today >= startDate && today <= endDate;
-      })
-      .sort((a, b) => a.id - b.id);  // 按任务 ID 排序，保持一致的显示顺序
+    // 获取每个任务的最新分配
+    const latestAssignments = new Map<number, TaskAssignmentWithDetails>();
+    assignments.forEach(assignment => {
+      const existingAssignment = latestAssignments.get(assignment.taskId);
+      if (!existingAssignment || new Date(assignment.startDate) > new Date(existingAssignment.startDate)) {
+        latestAssignments.set(assignment.taskId, assignment);
+      }
+    });
+    
+    // 转换回数组并按任务 ID 排序
+    return Array.from(latestAssignments.values())
+      .sort((a, b) => a.id - b.id);
   };
 
   const handleSendToSlack = async () => {
@@ -333,39 +334,41 @@ export default function Dashboard() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {assignments.map((assignment) => {
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  const startDate = parseISO(assignment.startDate);
-                  const endDate = parseISO(assignment.endDate);
-                  startDate.setHours(0, 0, 0, 0);
-                  endDate.setHours(23, 59, 59, 999);
-                  
-                  let status = 'Upcoming';
-                  if (today >= startDate && today <= endDate) {
-                    status = 'Current';
-                  } else if (today > endDate) {
-                    status = 'Past';
-                  }
+                {assignments
+                  .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
+                  .map((assignment) => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const startDate = parseISO(assignment.startDate);
+                    const endDate = parseISO(assignment.endDate);
+                    startDate.setHours(0, 0, 0, 0);
+                    endDate.setHours(23, 59, 59, 999);
+                    
+                    let status = 'Upcoming';
+                    if (today >= startDate && today <= endDate) {
+                      status = 'Current';
+                    } else if (today > endDate) {
+                      status = 'Past';
+                    }
 
-                  return (
-                    <TableRow 
-                      key={assignment.id}
-                      sx={{
-                        backgroundColor: 
-                          status === 'Current' ? 'rgba(76, 175, 80, 0.1)' :
-                          status === 'Past' ? 'rgba(158, 158, 158, 0.1)' :
-                          'inherit'
-                      }}
-                    >
-                      <TableCell>{assignment.taskName}</TableCell>
-                      <TableCell>{assignment.host}</TableCell>
-                      <TableCell>{format(parseISO(assignment.startDate), 'yyyy-MM-dd')}</TableCell>
-                      <TableCell>{format(parseISO(assignment.endDate), 'yyyy-MM-dd')}</TableCell>
-                      <TableCell>{status}</TableCell>
-                    </TableRow>
-                  );
-                })}
+                    return (
+                      <TableRow 
+                        key={assignment.id}
+                        sx={{
+                          backgroundColor: 
+                            status === 'Current' ? 'rgba(76, 175, 80, 0.1)' :
+                            status === 'Past' ? 'rgba(158, 158, 158, 0.1)' :
+                            'inherit'
+                        }}
+                      >
+                        <TableCell>{assignment.taskName}</TableCell>
+                        <TableCell>{assignment.host}</TableCell>
+                        <TableCell>{format(parseISO(assignment.startDate), 'yyyy-MM-dd')}</TableCell>
+                        <TableCell>{format(parseISO(assignment.endDate), 'yyyy-MM-dd')}</TableCell>
+                        <TableCell>{status}</TableCell>
+                      </TableRow>
+                    );
+                  })}
               </TableBody>
             </Table>
           </TableContainer>
