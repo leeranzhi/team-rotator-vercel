@@ -202,7 +202,7 @@ export async function getTaskAssignmentsWithDetails(): Promise<any[]> {
     return {
       ...assignment,
       taskName: task?.name || 'Unknown Task',
-      name: member?.name || 'Unknown Member',
+      host: member?.host || 'Unknown Member',
       slackMemberId: member?.slackMemberId || 'Unknown',
     };
   });

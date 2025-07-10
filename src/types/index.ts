@@ -1,15 +1,13 @@
 export interface Member {
   id: number;
-  name: string;
   slackMemberId: string;
-  active?: boolean;
+  host: string;
 }
 
 export interface Task {
   id: number;
   name: string;
   rotationRule: string;
-  active?: boolean;
 }
 
 export interface TaskAssignment {
@@ -27,10 +25,12 @@ export interface SystemConfig {
   modifiedBy: string | null;
 }
 
+export type EdgeConfigValue = string | number | boolean | Record<string, any> | EdgeConfigValue[];
+
 // Edge Config 类型定义
 export interface EdgeConfigClient {
-  get(key: string): Promise<any>;
-  set(key: string, value: any): Promise<void>;
+  get(key: string): Promise<EdgeConfigValue>;
+  set(key: string, value: EdgeConfigValue): Promise<void>;
   has(key: string): Promise<boolean>;
   delete(key: string): Promise<void>;
 }
@@ -45,6 +45,6 @@ declare global {
 
 export interface TaskAssignmentWithDetails extends TaskAssignment {
   taskName: string;
-  name: string;
+  host: string;
   slackMemberId: string;
 } 

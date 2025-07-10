@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "export-data": "ts-node scripts/export-data.ts"
+    "export-data": "ts-node scripts/export-data.ts",
+    "migrate": "ts-node -r tsconfig-paths/register scripts/migrate-to-edge-config.ts",
+    "clear-edge-config": "ts-node -r tsconfig-paths/register scripts/clear-edge-config.ts",
+    "create-edge-config": "ts-node -r tsconfig-paths/register scripts/create-edge-config.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -20,7 +23,7 @@
     "@tanstack/react-query": "^5.25.0",
     "@types/node-cron": "^3.0.11",
     "@vercel/edge-config": "^1.4.0",
-    "axios": "^1.6.8",
+    "axios": "^1.10.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^2.30.0",
@@ -44,6 +47,7 @@
     "postcss": "^8",
     "tailwindcss": "^3.3.0",
     "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.3"
   }
 }

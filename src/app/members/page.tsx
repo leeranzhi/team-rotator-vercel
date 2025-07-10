@@ -21,7 +21,7 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getMembers, createMember } from '@/services/api';
+import { getMembers, createMember, updateMember } from '@/services/api';
 import { Member } from '@/types';
 
 export default function Members() {
@@ -42,8 +42,16 @@ export default function Members() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: updateMember,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+      handleClose();
+    },
+  });
+
   const handleOpen = (member?: Member) => {
-    setEditingMember(member || { name: '', slackMemberId: '' });
+    setEditingMember(member || { host: '', slackMemberId: '' });
     setOpen(true);
   };
 
@@ -58,9 +66,11 @@ export default function Members() {
 
     if (!editingMember.id) {
       createMutation.mutate({
-        name: editingMember.name!,
+        host: editingMember.host!,
         slackMemberId: editingMember.slackMemberId!,
       });
+    } else {
+      updateMutation.mutate(editingMember as Member);
     }
   };
 
@@ -90,7 +100,7 @@ export default function Members() {
           <TableBody>
             {members?.map((member) => (
               <TableRow key={member.id}>
-                <TableCell>{member.name}</TableCell>
+                <TableCell>{member.host}</TableCell>
                 <TableCell>{member.slackMemberId}</TableCell>
                 <TableCell align="right">
                   <IconButton onClick={() => handleOpen(member)}>
@@ -113,9 +123,9 @@ export default function Members() {
                 margin="dense"
                 label="Name"
                 fullWidth
-                value={editingMember?.name || ''}
+                value={editingMember?.host || ''}
                 onChange={(e) =>
-                  setEditingMember((prev) => ({ ...prev!, name: e.target.value }))
+                  setEditingMember((prev) => ({ ...prev!, host: e.target.value }))
                 }
               />
               <TextField

@@ -19,4 +19,14 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create member' }, { status: 500 });
   }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const member: Member = await request.json();
+    await updateMember(member);
+    return NextResponse.json(member);
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to update member' }, { status: 500 });
+  }
 } 

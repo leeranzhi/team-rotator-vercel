@@ -36,12 +36,8 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<TaskAssignmentWithDetails | null>(null);
-  const [selectedMember, setSelectedMember] = useState<{
-    name: string;
-    startDate: string;
-    endDate: string;
-  }>({
-    name: '',
+  const [selectedMember, setSelectedMember] = useState<{ host: string; startDate: string; endDate: string; }>({
+    host: '',
     startDate: '',
     endDate: '',
   });
@@ -87,7 +83,7 @@ export default function Dashboard() {
   const handleEditClick = (assignment: TaskAssignmentWithDetails) => {
     setSelectedAssignment(assignment);
     setSelectedMember({
-      name: assignment.name,
+      host: assignment.host,
       startDate: assignment.startDate,
       endDate: assignment.endDate,
     });
@@ -98,7 +94,7 @@ export default function Dashboard() {
     setEditDialogOpen(false);
     setSelectedAssignment(null);
     setSelectedMember({
-      name: '',
+      host: '',
       startDate: '',
       endDate: '',
     });
@@ -107,7 +103,7 @@ export default function Dashboard() {
   const handleSave = async () => {
     if (!selectedAssignment) return;
 
-    const selectedMemberData = members.find(m => m.name === selectedMember.name);
+    const selectedMemberData = members.find(m => m.host === selectedMember.host);
     if (!selectedMemberData) return;
 
     await updateAssignmentMutation.mutateAsync({
@@ -172,7 +168,7 @@ export default function Dashboard() {
 
     let message = '';
     for (const assignment of sortedAssignments) {
-      message += `${assignment.taskName}: ${assignment.name}\n`;
+      message += `${assignment.taskName}: ${assignment.host}\n`;
 
       // 特殊处理 English word 任务
       if (assignment.taskName === "English word") {
@@ -181,8 +177,8 @@ export default function Dashboard() {
           const nextOneMember = allMembers[(currentMemberIndex + 1) % allMembers.length];
           const nextTwoMember = allMembers[(currentMemberIndex + 2) % allMembers.length];
 
-          message += `English word(Day + 1): ${nextOneMember.name}\n`;
-          message += `English word(Day + 2): ${nextTwoMember.name}\n`;
+          message += `English word(Day + 1): ${nextOneMember.host}\n`;
+          message += `English word(Day + 2): ${nextTwoMember.host}\n`;
         }
       }
     }
@@ -257,7 +253,7 @@ export default function Dashboard() {
                   {getCurrentAssignments().map((assignment) => (
                     <TableRow key={assignment.id}>
                       <TableCell>{assignment.taskName}</TableCell>
-                      <TableCell>{assignment.name}</TableCell>
+                      <TableCell>{assignment.host}</TableCell>
                       <TableCell>{format(parseISO(assignment.startDate), 'yyyy-MM-dd')}</TableCell>
                       <TableCell>{format(parseISO(assignment.endDate), 'yyyy-MM-dd')}</TableCell>
                       <TableCell align="right">
@@ -281,13 +277,13 @@ export default function Dashboard() {
                   <TextField
                     select
                     label="Assignee"
-                    value={selectedMember.name}
-                    onChange={(e) => setSelectedMember({ ...selectedMember, name: e.target.value })}
+                    value={selectedMember.host}
+                    onChange={(e) => setSelectedMember({ ...selectedMember, host: e.target.value })}
                     fullWidth
                   >
                     {members.map((member) => (
-                      <MenuItem key={member.id} value={member.name}>
-                        {member.name}
+                      <MenuItem key={member.id} value={member.host}>
+                        {member.host}
                       </MenuItem>
                     ))}
                   </TextField>
@@ -334,7 +330,7 @@ export default function Dashboard() {
                 {assignments.map((assignment) => (
                   <TableRow key={assignment.id}>
                     <TableCell>{assignment.taskName}</TableCell>
-                    <TableCell>{assignment.name}</TableCell>
+                    <TableCell>{assignment.host}</TableCell>
                     <TableCell>{format(parseISO(assignment.startDate), 'yyyy-MM-dd')}</TableCell>
                     <TableCell>{format(parseISO(assignment.endDate), 'yyyy-MM-dd')}</TableCell>
                   </TableRow>

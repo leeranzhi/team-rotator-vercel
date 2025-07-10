@@ -18,8 +18,13 @@ export const getMembers = async (): Promise<Member[]> => {
   return response.data;
 };
 
-export const createMember = async (member: Omit<Member, 'id'>): Promise<Member> => {
+export const createMember = async (member: { host: string; slackMemberId: string }): Promise<Member> => {
   const response = await api.post('/members', member);
+  return response.data;
+};
+
+export const updateMember = async (member: Member): Promise<Member> => {
+  const response = await api.put('/members', member);
   return response.data;
 };
 
