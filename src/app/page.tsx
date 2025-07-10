@@ -37,11 +37,11 @@ export default function Dashboard() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<TaskAssignmentWithDetails | null>(null);
   const [selectedMember, setSelectedMember] = useState<{
-    host: string;
+    name: string;
     startDate: string;
     endDate: string;
   }>({
-    host: '',
+    name: '',
     startDate: '',
     endDate: '',
   });
@@ -87,7 +87,7 @@ export default function Dashboard() {
   const handleEditClick = (assignment: TaskAssignmentWithDetails) => {
     setSelectedAssignment(assignment);
     setSelectedMember({
-      host: assignment.host,
+      name: assignment.name,
       startDate: assignment.startDate,
       endDate: assignment.endDate,
     });
@@ -98,7 +98,7 @@ export default function Dashboard() {
     setEditDialogOpen(false);
     setSelectedAssignment(null);
     setSelectedMember({
-      host: '',
+      name: '',
       startDate: '',
       endDate: '',
     });
@@ -107,7 +107,7 @@ export default function Dashboard() {
   const handleSave = async () => {
     if (!selectedAssignment) return;
 
-    const selectedMemberData = members.find(m => m.host === selectedMember.host);
+    const selectedMemberData = members.find(m => m.name === selectedMember.name);
     if (!selectedMemberData) return;
 
     await updateAssignmentMutation.mutateAsync({
@@ -172,7 +172,7 @@ export default function Dashboard() {
 
     let message = '';
     for (const assignment of sortedAssignments) {
-      message += `${assignment.taskName}: ${assignment.host}\n`;
+      message += `${assignment.taskName}: ${assignment.name}\n`;
 
       // 特殊处理 English word 任务
       if (assignment.taskName === "English word") {
@@ -181,8 +181,8 @@ export default function Dashboard() {
           const nextOneMember = allMembers[(currentMemberIndex + 1) % allMembers.length];
           const nextTwoMember = allMembers[(currentMemberIndex + 2) % allMembers.length];
 
-          message += `English word(Day + 1): ${nextOneMember.host}\n`;
-          message += `English word(Day + 2): ${nextTwoMember.host}\n`;
+          message += `English word(Day + 1): ${nextOneMember.name}\n`;
+          message += `English word(Day + 2): ${nextTwoMember.name}\n`;
         }
       }
     }
@@ -250,17 +250,17 @@ export default function Dashboard() {
                     <TableCell>Assignee</TableCell>
                     <TableCell>Start Date</TableCell>
                     <TableCell>End Date</TableCell>
-                    <TableCell>Actions</TableCell>
+                    <TableCell align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {assignments.map((assignment) => (
+                  {getCurrentAssignments().map((assignment) => (
                     <TableRow key={assignment.id}>
                       <TableCell>{assignment.taskName}</TableCell>
-                      <TableCell>{assignment.host}</TableCell>
+                      <TableCell>{assignment.name}</TableCell>
                       <TableCell>{format(parseISO(assignment.startDate), 'yyyy-MM-dd')}</TableCell>
                       <TableCell>{format(parseISO(assignment.endDate), 'yyyy-MM-dd')}</TableCell>
-                      <TableCell>
+                      <TableCell align="right">
                         <Button
                           startIcon={<EditIcon />}
                           onClick={() => handleEditClick(assignment)}
@@ -273,124 +273,112 @@ export default function Dashboard() {
                 </TableBody>
               </Table>
             </TableContainer>
-            <Paper sx={{ mt: 2, p: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                System Logs
-              </Typography>
-              <LogViewer />
-            </Paper>
+
+            <Dialog open={editDialogOpen} onClose={handleCloseDialog}>
+              <DialogTitle>Edit Assignment</DialogTitle>
+              <DialogContent>
+                <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <TextField
+                    select
+                    label="Assignee"
+                    value={selectedMember.name}
+                    onChange={(e) => setSelectedMember({ ...selectedMember, name: e.target.value })}
+                    fullWidth
+                  >
+                    {members.map((member) => (
+                      <MenuItem key={member.id} value={member.name}>
+                        {member.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <TextField
+                    label="Start Date"
+                    type="date"
+                    value={selectedMember.startDate}
+                    onChange={(e) => setSelectedMember({ ...selectedMember, startDate: e.target.value })}
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    label="End Date"
+                    type="date"
+                    value={selectedMember.endDate}
+                    onChange={(e) => setSelectedMember({ ...selectedMember, endDate: e.target.value })}
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Box>
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={handleCloseDialog}>Cancel</Button>
+                <Button onClick={handleSave} variant="contained" color="primary">
+                  Save
+                </Button>
+              </DialogActions>
+            </Dialog>
           </>
         )}
 
         {selectedTab === 1 && (
-          <Typography variant="body1" sx={{ p: 2 }}>
-            Assignment history will be implemented soon.
-          </Typography>
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Task</TableCell>
+                  <TableCell>Assignee</TableCell>
+                  <TableCell>Start Date</TableCell>
+                  <TableCell>End Date</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {assignments.map((assignment) => (
+                  <TableRow key={assignment.id}>
+                    <TableCell>{assignment.taskName}</TableCell>
+                    <TableCell>{assignment.name}</TableCell>
+                    <TableCell>{format(parseISO(assignment.startDate), 'yyyy-MM-dd')}</TableCell>
+                    <TableCell>{format(parseISO(assignment.endDate), 'yyyy-MM-dd')}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
 
         {selectedTab === 2 && (
           <LogViewer />
         )}
-      </Box>
 
-      <Dialog open={editDialogOpen} onClose={handleCloseDialog}>
-        <DialogTitle>Edit Assignment</DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 2 }}>
-            <TextField
-              select
-              fullWidth
-              label="Assignee"
-              value={selectedMember.host}
-              onChange={(e) => setSelectedMember({ ...selectedMember, host: e.target.value })}
-              sx={{ mb: 2 }}
-            >
-              {members?.map((member) => (
-                <MenuItem key={member.id} value={member.host}>
-                  {member.host}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              fullWidth
-              label="Start Date"
-              type="date"
-              value={selectedMember.startDate}
-              onChange={(e) => setSelectedMember({ ...selectedMember, startDate: e.target.value })}
-              InputLabelProps={{ shrink: true }}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              fullWidth
-              label="End Date"
-              type="date"
-              value={selectedMember.endDate}
-              onChange={(e) => setSelectedMember({ ...selectedMember, endDate: e.target.value })}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button
-            onClick={handleSave}
-            variant="contained"
-            disabled={updateAssignmentMutation.isPending}
-          >
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog
-        open={confirmDialogOpen}
-        onClose={() => setConfirmDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Send to Slack</DialogTitle>
-        <DialogContent>
-          <DialogContentText sx={{ mb: 2 }}>
-            The following message will be sent to Slack:
-          </DialogContentText>
-          <Paper 
-            variant="outlined" 
-            sx={{ 
-              p: 2, 
-              backgroundColor: '#f5f5f5',
-              fontFamily: 'monospace',
-              whiteSpace: 'pre-wrap'
-            }}
-          >
-            {getSlackMessagePreview() || 'No current assignments found'}
-          </Paper>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
-          <Button 
-            onClick={handleSendToSlack} 
-            variant="contained" 
-            color="primary"
-            disabled={!getSlackMessagePreview()}
-          >
-            Send
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={() => setSnackbar({ ...snackbar, open: false })} 
-          severity={snackbar.severity}
+        <Dialog
+          open={confirmDialogOpen}
+          onClose={() => setConfirmDialogOpen(false)}
         >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+          <DialogTitle>Send to Slack</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Are you sure you want to send the current assignments to Slack?
+            </DialogContentText>
+            <Box sx={{ mt: 2, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+              {getSlackMessagePreview()}
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSendToSlack} variant="contained" color="primary">
+              Send
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+        >
+          <Alert severity={snackbar.severity}>
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Box>
     </Box>
   );
 } 

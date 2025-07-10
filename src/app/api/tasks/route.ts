@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getTasks, saveTask } from '@/lib/db';
+import { getTasks, updateTask } from '@/lib/db';
 import { Task } from '@/types';
 
 export async function GET() {
@@ -14,8 +14,8 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const task: Task = await request.json();
-    const savedTask = await saveTask(task);
-    return NextResponse.json(savedTask);
+    await updateTask(task);
+    return NextResponse.json(task);
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });
   }

@@ -45,6 +45,6 @@ declare global {
 
 export interface TaskAssignmentWithDetails extends TaskAssignment {
   taskName: string;
-  host: string;
+  name: string;
   slackMemberId: string;
 } 

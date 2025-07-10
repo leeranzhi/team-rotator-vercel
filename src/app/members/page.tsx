@@ -43,7 +43,7 @@ export default function Members() {
   });
 
   const handleOpen = (member?: Member) => {
-    setEditingMember(member || { host: '', slackMemberId: '' });
+    setEditingMember(member || { name: '', slackMemberId: '' });
     setOpen(true);
   };
 
@@ -58,7 +58,7 @@ export default function Members() {
 
     if (!editingMember.id) {
       createMutation.mutate({
-        host: editingMember.host!,
+        name: editingMember.name!,
         slackMemberId: editingMember.slackMemberId!,
       });
     }
@@ -82,7 +82,7 @@ export default function Members() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Host</TableCell>
+              <TableCell>Name</TableCell>
               <TableCell>Slack ID</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
@@ -90,7 +90,7 @@ export default function Members() {
           <TableBody>
             {members?.map((member) => (
               <TableRow key={member.id}>
-                <TableCell>{member.host}</TableCell>
+                <TableCell>{member.name}</TableCell>
                 <TableCell>{member.slackMemberId}</TableCell>
                 <TableCell align="right">
                   <IconButton onClick={() => handleOpen(member)}>
@@ -111,11 +111,11 @@ export default function Members() {
               <TextField
                 autoFocus
                 margin="dense"
-                label="Host"
+                label="Name"
                 fullWidth
-                value={editingMember?.host || ''}
+                value={editingMember?.name || ''}
                 onChange={(e) =>
-                  setEditingMember((prev) => ({ ...prev!, host: e.target.value }))
+                  setEditingMember((prev) => ({ ...prev!, name: e.target.value }))
                 }
               />
               <TextField

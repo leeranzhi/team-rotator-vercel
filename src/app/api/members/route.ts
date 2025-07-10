@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getMembers, saveMember } from '@/lib/db';
+import { getMembers, updateMember } from '@/lib/db';
 import { Member } from '@/types';
 
 export async function GET() {
@@ -14,8 +14,8 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const member: Member = await request.json();
-    const savedMember = await saveMember(member);
-    return NextResponse.json(savedMember);
+    await updateMember(member);
+    return NextResponse.json(member);
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create member' }, { status: 500 });
   }

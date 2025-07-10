@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getTaskAssignmentsWithDetails, saveTaskAssignment, updateTaskAssignment } from '@/lib/db';
+import { getTaskAssignmentsWithDetails, updateTaskAssignment } from '@/lib/db';
 import { TaskAssignment } from '@/types';
 
 export async function GET() {
@@ -14,8 +14,8 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const assignment: TaskAssignment = await request.json();
-    const savedAssignment = await saveTaskAssignment(assignment);
-    return NextResponse.json(savedAssignment);
+    await updateTaskAssignment(assignment);
+    return NextResponse.json(assignment);
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create assignment' }, { status: 500 });
   }
@@ -24,8 +24,8 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const assignment: TaskAssignment = await request.json();
-    const updatedAssignment = await updateTaskAssignment(assignment);
-    return NextResponse.json(updatedAssignment);
+    await updateTaskAssignment(assignment);
+    return NextResponse.json(assignment);
   } catch (error) {
     return NextResponse.json({ error: 'Failed to update assignment' }, { status: 500 });
   }

@@ -2,5 +2,12 @@
   "crons": [{
     "path": "/api/cron",
     "schedule": "0 0 * * *"
-  }]
+  }],
+  "env": {
+    "EDGE_CONFIG": "@edge-config"
+  },
+  "buildCommand": "next build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "regions": ["iad1"]
 } 
