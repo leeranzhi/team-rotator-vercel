@@ -8,8 +8,6 @@ export function getNextDayAfterTargetDay(start: Date, targetDay: number): Date {
   const daysToAddWithExtra = daysToAdd === 0 ? 7 : daysToAdd;
   const targetDate = new Date(start);
   targetDate.setDate(start.getDate() + daysToAddWithExtra);
-  // 额外加一天，与原项目保持一致
-  targetDate.setDate(targetDate.getDate() + 1);
   return targetDate;
 }
 
@@ -24,15 +22,22 @@ async function findNextWorkingDay(fromDate: Date): Promise<Date> {
   return next;
 }
 
-export async function calculateNextRotationDates(rule: string, fromDate: Date): Promise<{ startDate: Date; endDate: Date }> {
-  if (rule === 'daily') {
+// 获取指定日期所在周的周一
+function getMondayOfWeek(date: Date): Date {
+  const monday = new Date(date);
+  monday.setDate(monday.getDate() - (monday.getDay() - 1 + 7) % 7);
+  return monday;
+}
+
+export async function calculateNextRotationDates(task: Task, fromDate: Date): Promise<{ startDate: Date; endDate: Date }> {
+  if (task.rotationRule === 'daily') {
     const nextWorkingDay = await findNextWorkingDay(fromDate);
     return { startDate: nextWorkingDay, endDate: nextWorkingDay };
   }
 
-  const parts = rule?.split('_');
+  const parts = task.rotationRule.split('_');
   if (!parts || parts.length !== 2) {
-    throw new Error(`Invalid rotation rule: ${rule}`);
+    throw new Error(`Invalid rotation rule: ${task.rotationRule}`);
   }
 
   const [frequency, dayOfWeekStr] = parts;
@@ -43,23 +48,35 @@ export async function calculateNextRotationDates(rule: string, fromDate: Date): 
     throw new Error(`Invalid day in rotation rule: ${dayOfWeekStr}`);
   }
 
-  const firstTargetDayAfter = getNextDayAfterTargetDay(fromDate, targetDay);
-
+  // 获取下一个目标日期
+  const nextTargetDay = getNextDayAfterTargetDay(fromDate, targetDay);
+  
+  // 根据频率计算结束日期
+  let startDate: Date, endDate: Date;
+  
   switch (frequency) {
     case 'weekly': {
-      const endDate = new Date(firstTargetDayAfter);
-      endDate.setDate(endDate.getDate() + 6);
-      return { startDate: firstTargetDayAfter, endDate };
+      // 对于weekly任务，从下一个周一开始
+      startDate = getMondayOfWeek(nextTargetDay);
+      endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 6); // 到下周日结束
+      break;
     }
     case 'biweekly': {
-      const secondTargetDay = getNextDayAfterTargetDay(firstTargetDayAfter, targetDay);
-      const endDate = new Date(secondTargetDay);
-      endDate.setDate(endDate.getDate() + 13);
-      return { startDate: secondTargetDay, endDate };
+      // 对于biweekly任务，从下一个指定日期开始
+      startDate = nextTargetDay;
+      endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 13); // 两周后结束
+      break;
     }
     default:
       throw new Error(`Unsupported frequency: ${frequency}`);
   }
+
+  // 确保开始日期是工作日
+  startDate = await findNextWorkingDay(startDate);
+  
+  return { startDate, endDate };
 }
 
 function rotateMemberList(currentMemberId: number, members: Member[], rotations: number): number {
@@ -71,52 +88,28 @@ function rotateMemberList(currentMemberId: number, members: Member[], rotations:
   return sortedMembers[(currentIndex + rotations) % sortedMembers.length].id;
 }
 
-async function countWorkingDaysBetween(startDate: Date, endDate: Date): Promise<number> {
-  let count = 0;
-  const current = new Date(startDate);
-  current.setDate(current.getDate() + 1); // Start from the next day
-
-  while (current <= endDate) {
-    if (await isWorkingDay(current)) {
-      count++;
-    }
-    current.setDate(current.getDate() + 1);
+async function shouldRotateToday(task: Task, today: Date): Promise<boolean> {
+  // 首先检查是否是工作日
+  if (!(await isWorkingDay(today))) {
+    logger.info(`${today.toISOString().split('T')[0]} is not a working day, skipping rotation check`);
+    return false;
   }
 
-  return count;
-}
-
-async function calculateRotations(task: Task, startDate: Date, endDate: Date): Promise<number> {
   if (task.rotationRule === 'daily') {
-    // 对于每日任务，计算工作日数量
-    const workingDays = await countWorkingDaysBetween(startDate, endDate);
-    logger.info(`Calculated ${workingDays} working days between ${startDate.toISOString()} and ${endDate.toISOString()}`);
-    return workingDays;
+    return true;
   }
 
-  // 对于每周或每两周的任务，计算完整周期数
-  const parts = task.rotationRule.split('_');
-  if (parts.length !== 2) {
-    throw new Error(`Invalid rotation rule: ${task.rotationRule}`);
+  const [frequency, dayOfWeekStr] = task.rotationRule.split('_');
+  const targetDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    .indexOf(dayOfWeekStr.toLowerCase());
+
+  // 对于weekly和biweekly任务，检查是否是周一
+  if (today.getDay() !== 1) { // 1 represents Monday
+    logger.info(`Today is not Monday, skipping rotation check for ${task.name}`);
+    return false;
   }
 
-  const [frequency] = parts;
-  const daysDiff = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-  
-  let rotations = 0;
-  switch (frequency) {
-    case 'weekly':
-      rotations = Math.floor(daysDiff / 7);
-      break;
-    case 'biweekly':
-      rotations = Math.floor(daysDiff / 14);
-      break;
-    default:
-      throw new Error(`Unsupported frequency: ${frequency}`);
-  }
-
-  logger.info(`Calculated ${rotations} rotations for ${task.rotationRule} between ${startDate.toISOString()} and ${endDate.toISOString()}`);
-  return rotations;
+  return true;
 }
 
 export async function updateTaskAssignments(): Promise<void> {
@@ -138,7 +131,6 @@ export async function updateTaskAssignments(): Promise<void> {
       continue;
     }
 
-    const startDate = new Date(assignment.startDate);
     const endDate = new Date(assignment.endDate);
 
     logger.info(`Checking assignment ${assignment.id}:
@@ -147,33 +139,28 @@ export async function updateTaskAssignments(): Promise<void> {
       Current member: ${assignment.memberId}
       Today: ${today.toISOString().split('T')[0]}`);
 
+    // 检查是否需要今天轮换
+    if (!(await shouldRotateToday(task, today))) {
+      logger.info(`Not rotation day for task ${task.name}, skipping`);
+      continue;
+    }
+
+    // 如果当前分配还未结束，不需要轮换
     if (today <= endDate) {
       logger.info(`Assignment ${assignment.id} is still current, skipping`);
       continue;
     }
 
-    // 计算从上一个任务结束到今天之间需要轮换的次数
-    const rotations = await calculateRotations(task, endDate, today);
-    
-    if (rotations <= 0) {
-      logger.info(`No rotations needed for assignment ${assignment.id} (${task.name})`);
-      continue;
-    }
+    // 计算新的轮换周期
+    const { startDate: newStartDate, endDate: newEndDate } = await calculateNextRotationDates(task, endDate);
 
-    // 使用当前 assignment 的 endDate 作为基准来计算下一个轮转周期
-    const { startDate: newStartDate, endDate: newEndDate } = await calculateNextRotationDates(
-      task.rotationRule,
-      endDate
-    );
-
-    // 根据轮换次数计算新的成员
-    const newMemberId = rotateMemberList(assignment.memberId, members, rotations);
+    // 计算新的成员（对于所有类型的任务都向前轮换一位）
+    const newMemberId = rotateMemberList(assignment.memberId, members, 1);
 
     logger.info(`Updating assignment ${assignment.id}:
       Task: ${task.name}
       Current: ${assignment.startDate} - ${assignment.endDate} (Member: ${assignment.memberId})
-      New: ${newStartDate.toISOString().split('T')[0]} - ${newEndDate.toISOString().split('T')[0]} (Member: ${newMemberId})
-      Rotations: ${rotations}`);
+      New: ${newStartDate.toISOString().split('T')[0]} - ${newEndDate.toISOString().split('T')[0]} (Member: ${newMemberId})`);
 
     await updateTaskAssignment({
       ...assignment,
