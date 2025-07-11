@@ -1,82 +1,64 @@
-# Team Rotator (Vercel Version)
+# Team Rotator
 
-这是Team Rotator的Vercel版本，使用Next.js和JSON文件存储来替代原有的PostgreSQL数据库，以便在Vercel平台上部署。
+A team rotation management system built with Next.js and Vercel Edge Config.
 
-## 功能特点
+## Environment Variables
 
-- 团队成员管理
-- 任务管理
-- 任务轮换分配
-- Slack通知集成
-- 响应式设计，支持移动设备
+The application requires the following environment variables:
 
-## 技术栈
+### Required
+- `EDGE_CONFIG`: The Edge Config connection string (e.g., `https://edge-config.vercel.com/ecfg_xxx?token=xxx`)
+  - Used for reading data from Edge Config
+  - The token in this URL is used for read-only operations
 
-- Next.js 14
-- React 18
-- Material-UI
-- React Query
-- TypeScript
-- JSON文件存储
+### Optional
+- `VERCEL_ACCESS_TOKEN`: A Vercel access token with Edge Config write permissions
+  - Required for write operations (e.g., updating assignments, rotation)
+  - Generate from Vercel account settings
+  - Must have Edge Config write permissions
 
-## 开始使用
+## Development
 
-1. 克隆仓库：
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Set up environment variables:
+   ```bash
+   # .env.local
+   EDGE_CONFIG=your_edge_config_url
+   VERCEL_ACCESS_TOKEN=your_vercel_access_token  # Optional for development
+   ```
+4. Run the development server:
+   ```bash
+   npm run dev
+   ```
 
-```bash
-git clone <repository-url>
-cd team-rotator-vercel
-```
+## Testing Edge Config API
 
-2. 安装依赖：
-
-```bash
-npm install
-```
-
-3. 从现有数据库导出数据（如果有）：
-
-```bash
-npm run export-data
-```
-
-4. 启动开发服务器：
+Use the provided test script to verify Edge Config API access:
 
 ```bash
-npm run dev
+# Set environment variables
+export EDGE_CONFIG="your_edge_config_url"
+export VERCEL_ACCESS_TOKEN="your_vercel_access_token"  # Required for write operations
+
+# Run the test script
+./test-edge-config.sh
 ```
 
-5. 访问 http://localhost:3000
+The script will:
+1. Get all Edge Configs
+2. Get items from the specific Edge Config
+3. Test updating an item
 
-## 部署到Vercel
+## Deployment
 
-1. 在Vercel上创建新项目
-2. 连接到GitHub仓库
-3. 部署
+When deploying to Vercel:
 
-## 数据存储
+1. Add the `EDGE_CONFIG` environment variable from your Edge Config settings
+2. Add the `VERCEL_ACCESS_TOKEN` environment variable for write operations
+3. Deploy the application
 
-数据存储在`data`目录下的JSON文件中：
-
-- `members.json` - 团队成员信息
-- `tasks.json` - 任务信息
-- `task_assignments.json` - 任务分配信息
-- `system_configs.json` - 系统配置信息
-
-## API端点
-
-- `/api/members` - 成员管理
-- `/api/tasks` - 任务管理
-- `/api/assignments` - 任务分配管理
-- `/api/config` - 系统配置管理
-- `/api/assignments/update-rotation` - 任务轮换更新
-
-## 环境变量
-
-不需要设置环境变量，所有配置都存储在`system_configs.json`中。
-
-## 注意事项
-
-- 这个版本使用JSON文件存储数据，适合小型团队使用
-- 所有数据更改都会直接写入JSON文件
-- Vercel的无服务器环境中，文件系统是只读的，因此数据更改只会在部署时生效 
+The application will automatically use the correct tokens for read and write operations. 

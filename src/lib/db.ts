@@ -3,9 +3,10 @@ import { createClient } from '@vercel/edge-config';
 import { logger } from './logger';
 
 // Edge Config 客户端配置
-const EDGE_CONFIG_ID = process.env.EDGE_CONFIG_ID;
-const VERCEL_ACCESS_TOKEN = process.env.VERCEL_ACCESS_TOKEN;
-const TEAM_ID = process.env.TEAM_ID;
+const EDGE_CONFIG = process.env.EDGE_CONFIG;
+const EDGE_CONFIG_ID = EDGE_CONFIG ? new URL(EDGE_CONFIG).pathname.split('/')[1] : null;
+const EDGE_CONFIG_TOKEN = EDGE_CONFIG ? new URL(EDGE_CONFIG).searchParams.get('token') : null;
+const VERCEL_ACCESS_TOKEN = process.env.VERCEL_ACCESS_TOKEN || EDGE_CONFIG_TOKEN;
 
 // 读取客户端
 const edgeConfigRead = process.env.EDGE_CONFIG ? createClient(process.env.EDGE_CONFIG) : null;
@@ -40,12 +41,14 @@ function checkEdgeConfig() {
 // 辅助函数：使用 Vercel REST API 更新 Edge Config
 async function updateEdgeConfig(key: string, value: any) {
   if (!EDGE_CONFIG_ID || !VERCEL_ACCESS_TOKEN) {
+    logger.error('Edge Config credentials not found', { EDGE_CONFIG_ID: !!EDGE_CONFIG_ID, VERCEL_ACCESS_TOKEN: !!VERCEL_ACCESS_TOKEN });
     throw new Error('Edge Config credentials not found');
   }
 
-  const url = `https://api.vercel.com/v1/edge-config/${EDGE_CONFIG_ID}/items${TEAM_ID ? `?teamId=${TEAM_ID}` : ''}`;
+  const url = `https://api.vercel.com/v1/edge-config/${EDGE_CONFIG_ID}/items`;
   
   try {
+    logger.info('Updating Edge Config', { key, url });
     const response = await fetch(url, {
       method: 'PATCH',
       headers: {
@@ -65,13 +68,15 @@ async function updateEdgeConfig(key: string, value: any) {
 
     if (!response.ok) {
       const error = await response.json();
+      logger.error('Failed to update Edge Config', { error, status: response.status });
       throw new Error(`Failed to update Edge Config: ${JSON.stringify(error)}`);
     }
 
     const result = await response.json();
+    logger.info('Successfully updated Edge Config', { key, result });
     return result;
   } catch (error) {
-    logger.error(`Failed to update Edge Config key: ${key}`);
+    logger.error('Failed to update Edge Config', { error, key });
     throw error;
   }
 }
