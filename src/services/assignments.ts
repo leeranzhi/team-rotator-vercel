@@ -48,28 +48,15 @@ export async function getSlackMessage(assignments: any[]) {
 }
 
 export async function sendToSlack(webhookUrl: string, message: string) {
-  logger.info('Getting system configs for Slack notification...');
-  const configs = await getSystemConfigs();
-  const webhookConfig = configs.find(c => c.key === 'Slack:WebhookUrl');
-  const url = webhookUrl || webhookConfig?.value;
-
-  logger.info(`Webhook config: ${JSON.stringify({ found: !!url, url: url ? url.substring(0, 20) + '...' : 'not found' })}`);
-  
-  if (!url) {
-    const error = 'Slack webhook URL not configured';
-    logger.error(error);
-    throw new Error(error);
-  }
-
   try {
     logger.info('Sending notification to Slack...');
     const messageBody = typeof message === 'string' && !message.startsWith('{') 
       ? JSON.stringify({ text: message })
       : message;
     
-    logger.info(`Sending Slack message with:\nWebhook URL: ${url}\nMessage Body: ${messageBody}`);
+    logger.info(`Sending Slack message with message body: ${messageBody}`);
     
-    const response = await fetch(url, {
+    const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -78,16 +65,18 @@ export async function sendToSlack(webhookUrl: string, message: string) {
     });
 
     if (!response.ok) {
-      const error = `Failed to send Slack message. Status: ${response.status} Error: ${await response.text()}`;
+      const error = `Failed to send Slack message. Status: ${response.status}`;
       logger.error(error);
-      throw new Error(error);
+      // 不抛出错误，只记录日志
+      return;
     }
 
     logger.info('Successfully sent message to Slack');
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error sending to Slack';
     logger.error(`Error in sendToSlack: ${errorMessage}`);
-    throw error;
+    // 不抛出错误，只记录日志
+    return;
   }
 }
 

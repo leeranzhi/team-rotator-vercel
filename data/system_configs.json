@@ -4,11 +4,5 @@
     "value": "https://hooks.slack.com/services/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",
     "lastModified": "2025-07-07T06:40:15.147Z",
     "modifiedBy": null
-  },
-  {
-    "key": "Slack:PersonalWebhookUrl",
-    "value": "https://hooks.slack.com/services/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1111",
-    "lastModified": "2025-07-07T06:40:15.148Z",
-    "modifiedBy": null
   }
 ]
