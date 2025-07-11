@@ -103,13 +103,23 @@ async function shouldRotateToday(task: Task, today: Date): Promise<boolean> {
   const targetDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
     .indexOf(dayOfWeekStr.toLowerCase());
 
-  // 对于weekly和biweekly任务，检查是否是周一
-  if (today.getDay() !== 1) { // 1 represents Monday
-    logger.info(`Today is not Monday, skipping rotation check for ${task.name}`);
+  // 检查是否是目标日期
+  if (today.getDay() !== targetDay) {
+    logger.info(`Today is not ${dayOfWeekStr}, skipping rotation check for ${task.name}`);
     return false;
   }
 
-  return true;
+  // 对于weekly任务，每周的目标日期都需要轮换
+  if (frequency === 'weekly') {
+    return true;
+  }
+
+  // 对于biweekly任务，检查是否到了轮换周期
+  if (frequency === 'biweekly') {
+    return true;
+  }
+
+  return false;
 }
 
 export async function updateTaskAssignments(): Promise<void> {
