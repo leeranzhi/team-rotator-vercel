@@ -28,12 +28,12 @@ export interface SystemConfig {
 export type EdgeConfigValue = string | number | boolean | Record<string, any> | EdgeConfigValue[];
 
 // Edge Config 类型定义
-export interface EdgeConfigClient {
-  get(key: string): Promise<EdgeConfigValue>;
-  set(key: string, value: EdgeConfigValue): Promise<void>;
+export type EdgeConfigClient = {
+  get<T = EdgeConfigValue>(key: string): Promise<T>;
+  set<T = EdgeConfigValue>(key: string, value: T): Promise<void>;
   has(key: string): Promise<boolean>;
   delete(key: string): Promise<void>;
-}
+};
 
 declare global {
   namespace NodeJS {

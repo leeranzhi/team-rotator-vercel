@@ -1,14 +1,19 @@
-import { Member, Task, TaskAssignment, SystemConfig, EdgeConfigClient } from '@/types';
+import { Member, Task, TaskAssignment, SystemConfig } from '@/types';
 import { createClient } from '@vercel/edge-config';
 import { logger } from './logger';
 
-let edgeConfig: EdgeConfigClient | null = null;
-try {
-  if (process.env.EDGE_CONFIG) {
-    edgeConfig = createClient(process.env.EDGE_CONFIG) as unknown as EdgeConfigClient;
-  }
-} catch (error) {
-  logger.error('Failed to initialize Edge Config client');
+// Edge Config 客户端配置
+const EDGE_CONFIG_ID = process.env.EDGE_CONFIG_ID;
+const VERCEL_ACCESS_TOKEN = process.env.VERCEL_ACCESS_TOKEN;
+const TEAM_ID = process.env.TEAM_ID;
+
+// 读取客户端
+const edgeConfigRead = process.env.EDGE_CONFIG ? createClient(process.env.EDGE_CONFIG) : null;
+
+if (!process.env.EDGE_CONFIG) {
+  logger.warn('EDGE_CONFIG environment variable is not set');
+} else {
+  logger.info('Edge Config read client initialized successfully');
 }
 
 // 内存缓存，用于开发环境
@@ -17,21 +22,70 @@ let tasksCache: Task[] = [];
 let taskAssignmentsCache: TaskAssignment[] = [];
 let systemConfigsCache: SystemConfig[] = [];
 
-const isDev = process.env.NODE_ENV === 'development' || !edgeConfig;
+const isDev = process.env.NODE_ENV === 'development';
 
 // 辅助函数：确保数组存在
 function ensureArray<T>(value: T[] | null | undefined): T[] {
   return value || [];
 }
 
+// 辅助函数：检查 Edge Config 是否可用
+function checkEdgeConfig() {
+  if (!edgeConfigRead) {
+    logger.error('Edge Config client is not initialized');
+    throw new Error('Edge Config client is not initialized');
+  }
+}
+
+// 辅助函数：使用 Vercel REST API 更新 Edge Config
+async function updateEdgeConfig(key: string, value: any) {
+  if (!EDGE_CONFIG_ID || !VERCEL_ACCESS_TOKEN) {
+    throw new Error('Edge Config credentials not found');
+  }
+
+  const url = `https://api.vercel.com/v1/edge-config/${EDGE_CONFIG_ID}/items${TEAM_ID ? `?teamId=${TEAM_ID}` : ''}`;
+  
+  try {
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${VERCEL_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        items: [
+          {
+            operation: 'upsert',
+            key,
+            value,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Failed to update Edge Config: ${JSON.stringify(error)}`);
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    logger.error(`Failed to update Edge Config key: ${key}`);
+    throw error;
+  }
+}
+
 // Members
 export async function getMembers(): Promise<Member[]> {
   if (isDev) {
+    logger.info('Using local cache for members in development mode');
     return membersCache;
   }
   
   try {
-    const members = await edgeConfig!.get('members') as Member[];
+    checkEdgeConfig();
+    const members = await edgeConfigRead!.get('members') as Member[] | null;
     return ensureArray(members);
   } catch (error) {
     logger.error('Failed to get members from Edge Config');
@@ -58,7 +112,7 @@ export async function updateMember(member: Member): Promise<void> {
     } else {
       members.push(member);
     }
-    await edgeConfig!.set('members', members);
+    await updateEdgeConfig('members', members);
   } catch (error) {
     logger.error('Failed to update member in Edge Config');
     throw error;
@@ -68,11 +122,13 @@ export async function updateMember(member: Member): Promise<void> {
 // Tasks
 export async function getTasks(): Promise<Task[]> {
   if (isDev) {
+    logger.info('Using local cache for tasks in development mode');
     return tasksCache;
   }
 
   try {
-    const tasks = await edgeConfig!.get('tasks') as Task[];
+    checkEdgeConfig();
+    const tasks = await edgeConfigRead!.get('tasks') as Task[] | null;
     return ensureArray(tasks);
   } catch (error) {
     logger.error('Failed to get tasks from Edge Config');
@@ -99,7 +155,7 @@ export async function updateTask(task: Task): Promise<void> {
     } else {
       tasks.push(task);
     }
-    await edgeConfig!.set('tasks', tasks);
+    await updateEdgeConfig('tasks', tasks);
   } catch (error) {
     logger.error('Failed to update task in Edge Config');
     throw error;
@@ -109,11 +165,13 @@ export async function updateTask(task: Task): Promise<void> {
 // Task Assignments
 export async function getTaskAssignments(): Promise<TaskAssignment[]> {
   if (isDev) {
+    logger.info('Using local cache for task assignments in development mode');
     return taskAssignmentsCache;
   }
 
   try {
-    const assignments = await edgeConfig!.get('taskAssignments') as TaskAssignment[];
+    checkEdgeConfig();
+    const assignments = await edgeConfigRead!.get('taskAssignments') as TaskAssignment[] | null;
     return ensureArray(assignments);
   } catch (error) {
     logger.error('Failed to get task assignments from Edge Config');
@@ -140,7 +198,7 @@ export async function updateTaskAssignment(assignment: TaskAssignment): Promise<
     } else {
       assignments.push(assignment);
     }
-    await edgeConfig!.set('taskAssignments', assignments);
+    await updateEdgeConfig('taskAssignments', assignments);
   } catch (error) {
     logger.error('Failed to update task assignment in Edge Config');
     throw error;
@@ -150,11 +208,13 @@ export async function updateTaskAssignment(assignment: TaskAssignment): Promise<
 // System Configs
 export async function getSystemConfigs(): Promise<SystemConfig[]> {
   if (isDev) {
+    logger.info('Using local cache for system configs in development mode');
     return systemConfigsCache;
   }
 
   try {
-    const configs = await edgeConfig!.get('systemConfigs') as SystemConfig[];
+    checkEdgeConfig();
+    const configs = await edgeConfigRead!.get('systemConfigs') as SystemConfig[] | null;
     return ensureArray(configs);
   } catch (error) {
     logger.error('Failed to get system configs from Edge Config');
@@ -181,7 +241,7 @@ export async function saveSystemConfig(config: SystemConfig): Promise<void> {
     } else {
       configs.push(config);
     }
-    await edgeConfig!.set('systemConfigs', configs);
+    await updateEdgeConfig('systemConfigs', configs);
   } catch (error) {
     logger.error('Failed to save system config in Edge Config');
     throw error;
@@ -196,45 +256,14 @@ export async function getTaskAssignmentsWithDetails(): Promise<any[]> {
     getMembers(),
   ]);
 
-  return assignments
-    .map(assignment => {
-      const task = tasks.find(t => t.id === assignment.taskId);
-      const member = members.find(m => m.id === assignment.memberId);
-      return {
-        ...assignment,
-        taskName: task?.name || 'Unknown Task',
-        host: member?.host || 'Unknown Member',
-        slackMemberId: member?.slackMemberId || 'Unknown',
-      };
-    })
-    .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());  // 按开始日期降序排序
-}
-
-// 初始化函数
-export async function initializeDB(): Promise<void> {
-  if (!isDev && edgeConfig) {
-    try {
-      // 检查是否需要初始化
-      const [members, tasks, assignments, configs] = await Promise.all([
-        edgeConfig.get('members'),
-        edgeConfig.get('tasks'),
-        edgeConfig.get('taskAssignments'),
-        edgeConfig.get('systemConfigs'),
-      ]);
-
-      // 如果所有数据都不存在，则初始化
-      if (!members && !tasks && !assignments && !configs) {
-        await Promise.all([
-          edgeConfig.set('members', []),
-          edgeConfig.set('tasks', []),
-          edgeConfig.set('taskAssignments', []),
-          edgeConfig.set('systemConfigs', []),
-        ]);
-        logger.info('Initialized Edge Config storage');
-      }
-    } catch (error) {
-      logger.error('Failed to initialize Edge Config storage');
-      throw error;
-    }
-  }
+  return assignments.map(assignment => {
+    const task = tasks.find(t => t.id === assignment.taskId);
+    const member = members.find(m => m.id === assignment.memberId);
+    return {
+      ...assignment,
+      taskName: task?.name || 'Unknown Task',
+      host: member?.host || 'Unknown Host',
+      slackMemberId: member?.slackMemberId || '',
+    };
+  });
 } 

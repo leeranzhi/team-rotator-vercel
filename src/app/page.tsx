@@ -23,6 +23,7 @@ import {
   Tab,
   Tabs,
   DialogContentText,
+  CircularProgress,
 } from '@mui/material';
 import { Edit as EditIcon, Refresh as RefreshIcon, Send as SendIcon } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -41,7 +42,6 @@ export default function Dashboard() {
     startDate: '',
     endDate: '',
   });
-  const [error, setError] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -49,14 +49,18 @@ export default function Dashboard() {
   });
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
-  const { data: assignments = [] } = useQuery<TaskAssignmentWithDetails[]>({
+  const { data: assignments = [], isLoading: isLoadingAssignments, error: assignmentsError } = useQuery<TaskAssignmentWithDetails[]>({
     queryKey: ['assignments'],
     queryFn: getAssignments,
+    retry: 3,
+    retryDelay: 1000,
   });
 
-  const { data: members = [] } = useQuery<Member[]>({
+  const { data: members = [], isLoading: isLoadingMembers, error: membersError } = useQuery<Member[]>({
     queryKey: ['members'],
     queryFn: getMembers,
+    retry: 3,
+    retryDelay: 1000,
   });
 
   const updateAssignmentMutation = useMutation({
@@ -64,9 +68,19 @@ export default function Dashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assignments'] });
       handleCloseDialog();
+      setSnackbar({
+        open: true,
+        message: 'Assignment updated successfully',
+        severity: 'success'
+      });
     },
-    onError: () => {
-      setError('Failed to update assignment');
+    onError: (error) => {
+      console.error('Failed to update assignment:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to update assignment',
+        severity: 'error'
+      });
     },
   });
 
@@ -74,9 +88,19 @@ export default function Dashboard() {
     mutationFn: triggerRotationUpdate,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assignments'] });
+      setSnackbar({
+        open: true,
+        message: 'Rotation updated successfully',
+        severity: 'success'
+      });
     },
-    onError: () => {
-      setError('Failed to update rotation');
+    onError: (error) => {
+      console.error('Failed to update rotation:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to update rotation',
+        severity: 'error'
+      });
     },
   });
 
@@ -192,6 +216,25 @@ export default function Dashboard() {
     return message;
   };
 
+  // 在返回的 JSX 中添加加载和错误状态处理
+  if (isLoadingAssignments || isLoadingMembers) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (assignmentsError || membersError) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">
+          {assignmentsError ? 'Failed to load assignments' : 'Failed to load members'}
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box p={3}>
       <Box display="flex" flexDirection="column" gap={2}>
@@ -202,17 +245,19 @@ export default function Dashboard() {
           <Box display="flex" gap={2}>
             <Button
               variant="contained"
-              startIcon={<RefreshIcon />}
+              color="primary"
               onClick={handleUpdateRotation}
               disabled={updateRotationMutation.isPending}
+              startIcon={updateRotationMutation.isPending ? <CircularProgress size={20} /> : <RefreshIcon />}
             >
               Update Rotation
             </Button>
             <Button
               variant="contained"
               color="primary"
-              startIcon={<SendIcon />}
               onClick={handleConfirmSend}
+              disabled={updateRotationMutation.isPending}
+              startIcon={<SendIcon />}
             >
               Send to Slack
             </Button>
@@ -404,7 +449,7 @@ export default function Dashboard() {
           autoHideDuration={6000}
           onClose={() => setSnackbar({ ...snackbar, open: false })}
         >
-          <Alert severity={snackbar.severity}>
+          <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
             {snackbar.message}
           </Alert>
         </Snackbar>
