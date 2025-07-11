@@ -48,33 +48,36 @@ export async function calculateNextRotationDates(task: Task, fromDate: Date): Pr
     throw new Error(`Invalid day in rotation rule: ${dayOfWeekStr}`);
   }
 
-  // 获取下一个目标日期
-  const nextTargetDay = getNextDayAfterTargetDay(fromDate, targetDay);
-  
-  // 根据频率计算结束日期
   let startDate: Date, endDate: Date;
   
   switch (frequency) {
     case 'weekly': {
-      // 对于weekly任务，从下一个周一开始
-      startDate = getMondayOfWeek(nextTargetDay);
-      endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + 6); // 到下周日结束
+      // 对于weekly任务（如Standup和Tech huddle），从当前结束日期的下一个工作日开始
+      startDate = await findNextWorkingDay(fromDate);
+      
+      // 找到下一个目标日期（周五）作为结束日期
+      endDate = getNextDayAfterTargetDay(startDate, targetDay);
       break;
     }
     case 'biweekly': {
-      // 对于biweekly任务，从下一个指定日期开始
-      startDate = nextTargetDay;
-      endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + 13); // 两周后结束
+      // 对于biweekly任务（如English corner和Retro），从当前结束日期的下一个工作日开始
+      startDate = await findNextWorkingDay(fromDate);
+      
+      // 找到下一个目标日期（周四或周三）
+      endDate = getNextDayAfterTargetDay(startDate, targetDay);
+      
+      // 如果下一个目标日期比开始日期早，说明需要再往后找一周
+      if (endDate <= startDate) {
+        endDate.setDate(endDate.getDate() + 7);
+      }
+      
+      // 再加一周，确保是两周的周期
+      endDate.setDate(endDate.getDate() + 7);
       break;
     }
     default:
       throw new Error(`Unsupported frequency: ${frequency}`);
   }
-
-  // 确保开始日期是工作日
-  startDate = await findNextWorkingDay(startDate);
   
   return { startDate, endDate };
 }
