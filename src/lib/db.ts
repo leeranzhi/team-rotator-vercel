@@ -6,7 +6,7 @@ import { logger } from './logger';
 const EDGE_CONFIG = process.env.EDGE_CONFIG;
 const EDGE_CONFIG_ID = EDGE_CONFIG ? new URL(EDGE_CONFIG).pathname.split('/')[1] : null;
 const EDGE_CONFIG_TOKEN = EDGE_CONFIG ? new URL(EDGE_CONFIG).searchParams.get('token') : null;
-const VERCEL_ACCESS_TOKEN = process.env.VERCEL_ACCESS_TOKEN || EDGE_CONFIG_TOKEN;
+const VERCEL_ACCESS_TOKEN = process.env.VERCEL_ACCESS_TOKEN;
 
 // 读取客户端
 const edgeConfigRead = process.env.EDGE_CONFIG ? createClient(process.env.EDGE_CONFIG) : null;
@@ -15,6 +15,12 @@ if (!process.env.EDGE_CONFIG) {
   logger.warn('EDGE_CONFIG environment variable is not set');
 } else {
   logger.info('Edge Config read client initialized successfully');
+}
+
+if (!process.env.VERCEL_ACCESS_TOKEN) {
+  logger.warn('VERCEL_ACCESS_TOKEN environment variable is not set');
+} else {
+  logger.info('Vercel access token is available for write operations');
 }
 
 // 内存缓存，用于开发环境
@@ -40,9 +46,14 @@ function checkEdgeConfig() {
 
 // 辅助函数：使用 Vercel REST API 更新 Edge Config
 async function updateEdgeConfig(key: string, value: any) {
-  if (!EDGE_CONFIG_ID || !VERCEL_ACCESS_TOKEN) {
-    logger.error('Edge Config credentials not found', { EDGE_CONFIG_ID: !!EDGE_CONFIG_ID, VERCEL_ACCESS_TOKEN: !!VERCEL_ACCESS_TOKEN });
-    throw new Error('Edge Config credentials not found');
+  if (!EDGE_CONFIG_ID) {
+    logger.error('Edge Config ID not found');
+    throw new Error('Edge Config ID not found');
+  }
+
+  if (!VERCEL_ACCESS_TOKEN) {
+    logger.error('VERCEL_ACCESS_TOKEN not found. This token is required for write operations.');
+    throw new Error('VERCEL_ACCESS_TOKEN not found');
   }
 
   const url = `https://api.vercel.com/v1/edge-config/${EDGE_CONFIG_ID}/items`;
