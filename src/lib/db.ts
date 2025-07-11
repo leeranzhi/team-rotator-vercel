@@ -257,9 +257,13 @@ export async function saveSystemConfig(config: SystemConfig): Promise<void> {
     } else {
       configs.push(config);
     }
-    await updateEdgeConfig('systemConfigs', configs);
+
+    // 更新Edge Config并等待结果
+    const result = await updateEdgeConfig('systemConfigs', configs);
+    logger.info('System config saved successfully', { config, result });
   } catch (error) {
-    logger.error('Failed to save system config in Edge Config');
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('Failed to save system config in Edge Config', { error: errorMessage, config });
     throw error;
   }
 }
