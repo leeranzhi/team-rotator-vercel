@@ -12,9 +12,5 @@
       "memory": 1024,
       "maxDuration": 60
     }
-  },
-  "logs": {
-    "accessLog": true,
-    "debug": true
   }
 } 
