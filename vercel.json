@@ -6,5 +6,15 @@
   "buildCommand": "next build",
   "outputDirectory": ".next",
   "framework": "nextjs",
-  "regions": ["iad1"]
+  "regions": ["iad1"],
+  "functions": {
+    "api/cron/**": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  },
+  "logs": {
+    "accessLog": true,
+    "debug": true
+  }
 } 
