@@ -9,7 +9,7 @@ async function createEdgeConfig() {
   try {
     const response = await axios.post(
       'https://api.vercel.com/v1/edge-config',
-      {
+      { 
         name: 'team-rotator',
       },
       {

@@ -32,19 +32,47 @@ function addLog(level: LogLevel, message: string, context?: Record<string, any>)
     context,
   };
   logs.push(entry);
+
+  // Format for Vercel's logging system
+  const formattedMsg = formatMessage(level, message, context);
+  
+  // Use Vercel's logging system if available
+  if (process.env.VERCEL) {
+    switch (level) {
+      case 'info':
+        console.log(formattedMsg);
+        break;
+      case 'warn':
+        console.warn(formattedMsg);
+        break;
+      case 'error':
+        console.error(formattedMsg);
+        break;
+    }
+  } else {
+    // Local development logging
+    switch (level) {
+      case 'info':
+        console.log(formattedMsg);
+        break;
+      case 'warn':
+        console.warn(formattedMsg);
+        break;
+      case 'error':
+        console.error(formattedMsg);
+        break;
+    }
+  }
 }
 
 export const logger: Logger = {
   info(message: string, context?: Record<string, any>) {
-    console.log(formatMessage('info', message, context));
     addLog('info', message, context);
   },
   warn(message: string, context?: Record<string, any>) {
-    console.warn(formatMessage('warn', message, context));
     addLog('warn', message, context);
   },
   error(message: string, context?: Record<string, any>) {
-    console.error(formatMessage('error', message, context));
     addLog('error', message, context);
   },
   getLogs() {

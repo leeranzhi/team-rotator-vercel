@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create member' }, { status: 500 });
   }
-}
+} 
 
 export async function PUT(request: Request) {
   try {

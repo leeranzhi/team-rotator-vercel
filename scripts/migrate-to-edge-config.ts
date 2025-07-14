@@ -9,7 +9,7 @@ async function readJsonFile(filePath: string) {
   } catch (error) {
     console.error(`Error reading ${filePath}:`, error);
     return null;
-  }
+}
 }
 
 async function migrateToEdgeConfig() {
@@ -39,8 +39,8 @@ async function migrateToEdgeConfig() {
     }
 
     // 迁移数据到 Edge Config
-    await axios.patch(
-      `https://api.vercel.com/v1/edge-config/${configId}/items`,
+        await axios.patch(
+          `https://api.vercel.com/v1/edge-config/${configId}/items`,
       {
         items: [
           { key: 'members', value: members },

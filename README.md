@@ -21,19 +21,19 @@ The application requires the following environment variables:
 
 1. Clone the repository
 2. Install dependencies:
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+```
 3. Set up environment variables:
-   ```bash
+```bash
    # .env.local
    EDGE_CONFIG=your_edge_config_url
    VERCEL_ACCESS_TOKEN=your_vercel_access_token  # Optional for development
-   ```
+```
 4. Run the development server:
-   ```bash
-   npm run dev
-   ```
+```bash
+npm run dev
+```
 
 ## Testing Edge Config API
 

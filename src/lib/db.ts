@@ -15,7 +15,7 @@ if (!process.env.EDGE_CONFIG) {
   logger.warn('EDGE_CONFIG environment variable is not set');
 } else {
   logger.info('Edge Config read client initialized successfully');
-}
+  }
 
 if (!process.env.VERCEL_ACCESS_TOKEN) {
   logger.warn('VERCEL_ACCESS_TOKEN environment variable is not set');

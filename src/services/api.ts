@@ -29,8 +29,8 @@ const handleApiError = (error: AxiosError, context: string) => {
 // Members
 export const getMembers = async (): Promise<Member[]> => {
   try {
-    const response = await api.get('/members');
-    return response.data;
+  const response = await api.get('/members');
+  return response.data;
   } catch (error) {
     return handleApiError(error as AxiosError, 'getMembers');
   }
@@ -38,8 +38,8 @@ export const getMembers = async (): Promise<Member[]> => {
 
 export const createMember = async (member: { host: string; slackMemberId: string }): Promise<Member> => {
   try {
-    const response = await api.post('/members', member);
-    return response.data;
+  const response = await api.post('/members', member);
+  return response.data;
   } catch (error) {
     return handleApiError(error as AxiosError, 'createMember');
   }
@@ -57,8 +57,8 @@ export const updateMember = async (member: Member): Promise<Member> => {
 // Tasks
 export const getTasks = async (): Promise<Task[]> => {
   try {
-    const response = await api.get('/tasks');
-    return response.data;
+  const response = await api.get('/tasks');
+  return response.data;
   } catch (error) {
     return handleApiError(error as AxiosError, 'getTasks');
   }
@@ -66,8 +66,8 @@ export const getTasks = async (): Promise<Task[]> => {
 
 export const createTask = async (task: Omit<Task, 'id'>): Promise<Task> => {
   try {
-    const response = await api.post('/tasks', task);
-    return response.data;
+  const response = await api.post('/tasks', task);
+  return response.data;
   } catch (error) {
     return handleApiError(error as AxiosError, 'createTask');
   }
@@ -76,8 +76,8 @@ export const createTask = async (task: Omit<Task, 'id'>): Promise<Task> => {
 // Task Assignments
 export const getAssignments = async (): Promise<TaskAssignmentWithDetails[]> => {
   try {
-    const response = await api.get('/assignments');
-    return response.data;
+  const response = await api.get('/assignments');
+  return response.data;
   } catch (error) {
     return handleApiError(error as AxiosError, 'getAssignments');
   }
@@ -85,8 +85,8 @@ export const getAssignments = async (): Promise<TaskAssignmentWithDetails[]> => 
 
 export const saveAssignment = async (assignment: Omit<TaskAssignment, 'id'>): Promise<TaskAssignmentWithDetails> => {
   try {
-    const response = await api.post('/assignments', assignment);
-    return response.data;
+  const response = await api.post('/assignments', assignment);
+  return response.data;
   } catch (error) {
     return handleApiError(error as AxiosError, 'saveAssignment');
   }
@@ -94,8 +94,8 @@ export const saveAssignment = async (assignment: Omit<TaskAssignment, 'id'>): Pr
 
 export const updateAssignment = async (assignment: TaskAssignmentWithDetails): Promise<TaskAssignmentWithDetails> => {
   try {
-    const response = await api.put('/assignments', assignment);
-    return response.data;
+  const response = await api.put('/assignments', assignment);
+  return response.data;
   } catch (error) {
     return handleApiError(error as AxiosError, 'updateAssignment');
   }
@@ -103,7 +103,7 @@ export const updateAssignment = async (assignment: TaskAssignmentWithDetails): P
 
 export const triggerRotationUpdate = async (): Promise<void> => {
   try {
-    await api.post('/assignments/update-rotation');
+  await api.post('/assignments/update-rotation');
   } catch (error) {
     return handleApiError(error as AxiosError, 'triggerRotationUpdate');
   }
@@ -111,7 +111,7 @@ export const triggerRotationUpdate = async (): Promise<void> => {
 
 export const sendToSlack = async (): Promise<void> => {
   try {
-    await api.post('/assignments/send-to-slack');
+  await api.post('/assignments/send-to-slack');
   } catch (error) {
     return handleApiError(error as AxiosError, 'sendToSlack');
   }
@@ -120,8 +120,8 @@ export const sendToSlack = async (): Promise<void> => {
 // System Config
 export const getSystemConfigs = async (): Promise<SystemConfig[]> => {
   try {
-    const response = await api.get('/config');
-    return response.data;
+  const response = await api.get('/config');
+  return response.data;
   } catch (error) {
     return handleApiError(error as AxiosError, 'getSystemConfigs');
   }
@@ -129,8 +129,8 @@ export const getSystemConfigs = async (): Promise<SystemConfig[]> => {
 
 export const saveSystemConfig = async (config: SystemConfig): Promise<SystemConfig> => {
   try {
-    const response = await api.post('/config', config);
-    return response.data;
+  const response = await api.post('/config', config);
+  return response.data;
   } catch (error) {
     return handleApiError(error as AxiosError, 'saveSystemConfig');
   }
@@ -139,10 +139,10 @@ export const saveSystemConfig = async (config: SystemConfig): Promise<SystemConf
 // Webhook URL helpers
 export const getWebhookUrl = async (): Promise<string> => {
   try {
-    const response = await api.get('/config');
-    const configs = response.data;
-    const webhookConfig = configs.find((c: SystemConfig) => c.key === 'Slack:WebhookUrl');
-    return webhookConfig?.value || '';
+  const response = await api.get('/config');
+  const configs = response.data;
+  const webhookConfig = configs.find((c: SystemConfig) => c.key === 'Slack:WebhookUrl');
+  return webhookConfig?.value || '';
   } catch (error) {
     return handleApiError(error as AxiosError, 'getWebhookUrl');
   }
@@ -150,12 +150,12 @@ export const getWebhookUrl = async (): Promise<string> => {
 
 export const updateWebhookUrl = async (webhookUrl: string): Promise<void> => {
   try {
-    await saveSystemConfig({
-      key: 'Slack:WebhookUrl',
-      value: webhookUrl,
-      lastModified: new Date().toISOString(),
-      modifiedBy: null
-    });
+  await saveSystemConfig({
+    key: 'Slack:WebhookUrl',
+    value: webhookUrl,
+    lastModified: new Date().toISOString(),
+    modifiedBy: null
+  });
   } catch (error) {
     return handleApiError(error as AxiosError, 'updateWebhookUrl');
   }

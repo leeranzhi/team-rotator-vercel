@@ -406,12 +406,12 @@ export default function Dashboard() {
                             'inherit'
                         }}
                       >
-                        <TableCell>{assignment.taskName}</TableCell>
+                    <TableCell>{assignment.taskName}</TableCell>
                         <TableCell>{assignment.host}</TableCell>
-                        <TableCell>{format(parseISO(assignment.startDate), 'yyyy-MM-dd')}</TableCell>
-                        <TableCell>{format(parseISO(assignment.endDate), 'yyyy-MM-dd')}</TableCell>
+                    <TableCell>{format(parseISO(assignment.startDate), 'yyyy-MM-dd')}</TableCell>
+                    <TableCell>{format(parseISO(assignment.endDate), 'yyyy-MM-dd')}</TableCell>
                         <TableCell>{status}</TableCell>
-                      </TableRow>
+                  </TableRow>
                     );
                   })}
               </TableBody>

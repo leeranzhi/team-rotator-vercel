@@ -12,7 +12,7 @@ export function getNextDayAfterTargetDay(start: Date, targetDay: number): Date {
 }
 
 async function findNextWorkingDay(fromDate: Date): Promise<Date> {
-  const next = new Date(fromDate);
+    const next = new Date(fromDate);
   next.setDate(next.getDate() + 1);
   
   while (!(await isWorkingDay(next))) {
@@ -49,7 +49,7 @@ export async function calculateNextRotationDates(task: Task, fromDate: Date): Pr
   }
 
   let startDate: Date, endDate: Date;
-  
+
   switch (frequency) {
     case 'weekly': {
       // 对于weekly任务（如Standup和Tech huddle），从当前结束日期的下一个工作日开始
