@@ -3,6 +3,10 @@ import { getTaskAssignments, updateTaskAssignment, getTasks } from '@/lib/db';
 import { calculateNextRotationDates } from '@/lib/rotation';
 import { logger } from '@/lib/logger';
 
+// Prevent caching and ensure the function runs on every request
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+
 export async function GET() {
   try {
     logger.info('Starting to fix assignment dates...');

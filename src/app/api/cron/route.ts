@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { updateRotation } from '@/services/assignments';
 import { logger } from '@/lib/logger';
 
+// Prevent caching and ensure the function runs on every request
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+
 export async function GET() {
   try {
     // Add request ID for tracking
