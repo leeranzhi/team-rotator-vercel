@@ -29,8 +29,8 @@ const handleApiError = (error: AxiosError, context: string) => {
 // Members
 export const getMembers = async (): Promise<Member[]> => {
   try {
-  const response = await api.get('/members');
-  return response.data;
+    const response = await api.get('/members');
+    return response.data;
   } catch (error) {
     return handleApiError(error as AxiosError, 'getMembers');
   }
@@ -38,8 +38,8 @@ export const getMembers = async (): Promise<Member[]> => {
 
 export const createMember = async (member: { host: string; slackMemberId: string }): Promise<Member> => {
   try {
-  const response = await api.post('/members', member);
-  return response.data;
+    const response = await api.post('/members', member);
+    return response.data;
   } catch (error) {
     return handleApiError(error as AxiosError, 'createMember');
   }
@@ -54,11 +54,19 @@ export const updateMember = async (member: Member): Promise<Member> => {
   }
 };
 
+export const deleteMember = async (id: number): Promise<void> => {
+  try {
+    await api.delete(`/members?id=${id}`);
+  } catch (error) {
+    return handleApiError(error as AxiosError, 'deleteMember');
+  }
+};
+
 // Tasks
 export const getTasks = async (): Promise<Task[]> => {
   try {
-  const response = await api.get('/tasks');
-  return response.data;
+    const response = await api.get('/tasks');
+    return response.data;
   } catch (error) {
     return handleApiError(error as AxiosError, 'getTasks');
   }
@@ -66,10 +74,27 @@ export const getTasks = async (): Promise<Task[]> => {
 
 export const createTask = async (task: Omit<Task, 'id'>): Promise<Task> => {
   try {
-  const response = await api.post('/tasks', task);
-  return response.data;
+    const response = await api.post('/tasks', task);
+    return response.data;
   } catch (error) {
     return handleApiError(error as AxiosError, 'createTask');
+  }
+};
+
+export const updateTask = async (task: Task): Promise<Task> => {
+  try {
+    const response = await api.put('/tasks', task);
+    return response.data;
+  } catch (error) {
+    return handleApiError(error as AxiosError, 'updateTask');
+  }
+};
+
+export const deleteTask = async (id: number): Promise<void> => {
+  try {
+    await api.delete(`/tasks?id=${id}`);
+  } catch (error) {
+    return handleApiError(error as AxiosError, 'deleteTask');
   }
 };
 

@@ -109,6 +109,28 @@ export async function getMembers(): Promise<Member[]> {
   }
 }
 
+export async function createMember(member: Omit<Member, 'id'>): Promise<Member> {
+  const members = await getMembers();
+  const newMember: Member = {
+    ...member,
+    id: members.length > 0 ? Math.max(...members.map(m => m.id)) + 1 : 1
+  };
+
+  if (isDev) {
+    membersCache.push(newMember);
+    return newMember;
+  }
+
+  try {
+    members.push(newMember);
+    await updateEdgeConfig('members', members);
+    return newMember;
+  } catch (error) {
+    logger.error('Failed to create member in Edge Config');
+    throw error;
+  }
+}
+
 export async function updateMember(member: Member): Promise<void> {
   if (isDev) {
     const index = membersCache.findIndex(m => m.id === member.id);
@@ -135,6 +157,22 @@ export async function updateMember(member: Member): Promise<void> {
   }
 }
 
+export async function deleteMember(id: number): Promise<void> {
+  if (isDev) {
+    membersCache = membersCache.filter(m => m.id !== id);
+    return;
+  }
+
+  try {
+    const members = await getMembers();
+    const filteredMembers = members.filter(m => m.id !== id);
+    await updateEdgeConfig('members', filteredMembers);
+  } catch (error) {
+    logger.error('Failed to delete member from Edge Config');
+    throw error;
+  }
+}
+
 // Tasks
 export async function getTasks(): Promise<Task[]> {
   if (isDev) {
@@ -149,6 +187,28 @@ export async function getTasks(): Promise<Task[]> {
   } catch (error) {
     logger.error('Failed to get tasks from Edge Config');
     return [];
+  }
+}
+
+export async function createTask(task: Omit<Task, 'id'>): Promise<Task> {
+  const tasks = await getTasks();
+  const newTask: Task = {
+    ...task,
+    id: tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1
+  };
+
+  if (isDev) {
+    tasksCache.push(newTask);
+    return newTask;
+  }
+
+  try {
+    tasks.push(newTask);
+    await updateEdgeConfig('tasks', tasks);
+    return newTask;
+  } catch (error) {
+    logger.error('Failed to create task in Edge Config');
+    throw error;
   }
 }
 
@@ -174,6 +234,22 @@ export async function updateTask(task: Task): Promise<void> {
     await updateEdgeConfig('tasks', tasks);
   } catch (error) {
     logger.error('Failed to update task in Edge Config');
+    throw error;
+  }
+}
+
+export async function deleteTask(id: number): Promise<void> {
+  if (isDev) {
+    tasksCache = tasksCache.filter(t => t.id !== id);
+    return;
+  }
+
+  try {
+    const tasks = await getTasks();
+    const filteredTasks = tasks.filter(t => t.id !== id);
+    await updateEdgeConfig('tasks', filteredTasks);
+  } catch (error) {
+    logger.error('Failed to delete task from Edge Config');
     throw error;
   }
 }

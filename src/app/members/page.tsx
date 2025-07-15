@@ -18,16 +18,20 @@ import {
   TableRow,
   TextField,
   Typography,
+  Tooltip,
+  DialogContentText,
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon } from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getMembers, createMember, updateMember } from '@/services/api';
+import { getMembers, createMember, updateMember, deleteMember } from '@/services/api';
 import { Member } from '@/types';
 
 export default function Members() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Partial<Member> | null>(null);
+  const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
 
   const { data: members = [] } = useQuery<Member[]>({
     queryKey: ['members'],
@@ -50,6 +54,14 @@ export default function Members() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: deleteMember,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+      handleDeleteDialogClose();
+    },
+  });
+
   const handleOpen = (member?: Member) => {
     setEditingMember(member || { host: '', slackMemberId: '' });
     setOpen(true);
@@ -58,6 +70,22 @@ export default function Members() {
   const handleClose = () => {
     setEditingMember(null);
     setOpen(false);
+  };
+
+  const handleDeleteClick = (member: Member) => {
+    setMemberToDelete(member);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteDialogClose = () => {
+    setMemberToDelete(null);
+    setDeleteDialogOpen(false);
+  };
+
+  const handleDelete = () => {
+    if (memberToDelete) {
+      deleteMutation.mutate(memberToDelete.id);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -103,9 +131,16 @@ export default function Members() {
                 <TableCell>{member.host}</TableCell>
                 <TableCell>{member.slackMemberId}</TableCell>
                 <TableCell align="right">
-                  <IconButton onClick={() => handleOpen(member)}>
-                    <EditIcon />
-                  </IconButton>
+                  <Tooltip title="Edit">
+                    <IconButton onClick={() => handleOpen(member)}>
+                      <EditIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Delete">
+                    <IconButton onClick={() => handleDeleteClick(member)} color="error">
+                      <DeleteIcon />
+                    </IconButton>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             ))}
@@ -113,6 +148,7 @@ export default function Members() {
         </Table>
       </TableContainer>
 
+      {/* Add/Edit Dialog */}
       <Dialog open={open} onClose={handleClose}>
         <form onSubmit={handleSubmit}>
           <DialogTitle>{editingMember?.id ? 'Edit Member' : 'Add Member'}</DialogTitle>
@@ -146,6 +182,22 @@ export default function Members() {
             </Button>
           </DialogActions>
         </form>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={handleDeleteDialogClose}>
+        <DialogTitle>Delete Member</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete {memberToDelete?.host}? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteDialogClose}>Cancel</Button>
+          <Button onClick={handleDelete} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );
