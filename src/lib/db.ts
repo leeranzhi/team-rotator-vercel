@@ -45,7 +45,7 @@ function checkEdgeConfig() {
 }
 
 // 辅助函数：使用 Vercel REST API 更新 Edge Config
-async function updateEdgeConfig(key: string, value: any) {
+export async function updateEdgeConfig(key: string, value: any) {
   if (!EDGE_CONFIG_ID) {
     logger.error('Edge Config ID not found');
     throw new Error('Edge Config ID not found');
@@ -111,9 +111,15 @@ export async function getMembers(): Promise<Member[]> {
 
 export async function createMember(member: Omit<Member, 'id'>): Promise<Member> {
   const members = await getMembers();
+  
+  // Filter out null IDs and find the maximum ID
+  const maxId = members
+    .filter(m => m.id !== null && m.id !== undefined)
+    .reduce((max, m) => Math.max(max, m.id || 0), 0);
+  
   const newMember: Member = {
     ...member,
-    id: members.length > 0 ? Math.max(...members.map(m => m.id)) + 1 : 1
+    id: maxId + 1
   };
 
   if (isDev) {
@@ -192,9 +198,15 @@ export async function getTasks(): Promise<Task[]> {
 
 export async function createTask(task: Omit<Task, 'id'>): Promise<Task> {
   const tasks = await getTasks();
+  
+  // Filter out null IDs and find the maximum ID
+  const maxId = tasks
+    .filter(t => t.id !== null && t.id !== undefined)
+    .reduce((max, t) => Math.max(max, t.id || 0), 0);
+  
   const newTask: Task = {
     ...task,
-    id: tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1
+    id: maxId + 1
   };
 
   if (isDev) {
